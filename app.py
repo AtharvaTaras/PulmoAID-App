@@ -311,8 +311,8 @@ def doctor_page():
 
 		logout = st.button(label='Logout', use_container_width=True)
 		if logout:
+			st.session_state.messages = []
 			st.session_state.login = False
-			st.session_state.layout = 'centered'
 			st.rerun()
 
 		st.session_state.subject_selection = st.selectbox(label='Patient ID', options=st.session_state.subject_list)
