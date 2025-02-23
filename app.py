@@ -301,26 +301,12 @@ def generate_shap_plot(base: pd.DataFrame, subject: str):
 	return image
 
 
-# @st.cache_resource
-# def load_image(subject:str):
-# 	path = r"A:\Software Projects\NLST-Dataset\images_all"
-# 	imagepaths = []
-
-# 	for root, _, files in os.walk(path):
-# 		for file in files:
-# 			if subject in files:
-# 				imagepaths.append(os.path.join(root, file))
-
-# 	return imagepaths[8:8+16]
-
-
 def doctor_page():
 	global csvdata, llmdata
 	
 	with st.sidebar:
-		st.header(body='Doctor Portal')
-		st.divider()
-		st.write(datetime.now().strftime("%Y-%M-%d %H:%M"))
+		st.header(body='Doctor\'s Portal')
+		st.write(datetime.now().strftime("%d %b %Y %I:%M %p"))
 		st.write(f'Welcome Dr.Tushar')
 
 		logout = st.button(label='Logout', use_container_width=True)
@@ -427,18 +413,49 @@ def doctor_page():
 		edited_data = {}
 		original_columns = csvdata.columns.tolist()
 		c1, c2, c3 = st.columns(3)
-	
+
 		original = csvdata[csvdata['Subject'] == int(st.session_state.selected_subject)]
 
 		def process_data(section_name, columns):
 			"""Handles editing and storing modified data while preserving structure."""
+			display_names = {
+				'age': 'Patient Age',
+				'ethnic': 'Ethnicity',
+				'gender': 'Gender',
+				'height': 'Height (in)',
+				'race': 'Race',
+				'weight': 'Weight (lbs)',
+				'age_quit': 'Quit Smoking Age',
+				'cigar': 'Smoked Cigar',
+				'pipe': 'Smoked Pipe',
+				'pkyr': 'Pack Years',
+				'smokeage': 'Smoking Onset Age',
+				'smokeday': 'Avg Days Smoked',
+				'smokelive': 'Lives With Smoker(s)',
+				'smokework': 'Works With Smoker(s)',
+				'smokeyr': 'Total Smoking Years',
+				'biop0': 'Biopsy Type',
+				'bioplc': 'Cancer Biopsy',
+				'can_scr': 'Screened for Cancer',
+				'canc_free_days': 'Days Without Cancer',
+				'proclc' : 'Cancer Procedure',
+				'cigsmok' : 'Currently Smoking'
+			}
+			
 			slice_df = csvdata[['Subject'] + columns]
 			data_df = slice_df[slice_df['Subject'] == int(st.session_state.subject_selection)].T
 			data_df.columns = ['Value']
-
+			
+			# Apply display names to the index
+			data_df.index = data_df.index.map(lambda x: display_names.get(x, x))
+			
 			# Editable dataframe
 			edited_df = st.data_editor(data_df, use_container_width=True)
-
+			
+			# Convert display names back to original column names
+			reverse_mapping = {v: k for k, v in display_names.items()}
+			edited_df.index = edited_df.index.map(lambda x: reverse_mapping.get(x, x))
+			
 			# Store edited values while avoiding duplicate 'Subject' columns
 			edited_df = edited_df.T
 			edited_df = edited_df.drop(columns=['Subject'], errors='ignore')
@@ -469,13 +486,12 @@ def doctor_page():
 			final_edited_df = final_edited_df.reindex(columns=original_columns, fill_value=None)
 			final_edited_df = final_edited_df.fillna(original.set_index('Subject').loc[st.session_state.selected_subject])
 
-			# st.write("Edited Data (Preserved Column Order, No Missing Values):")
-			# st.dataframe(final_edited_df)
-
 			new_pred = st.toggle('Generate New Prediction')
 			if new_pred:
 				new_X = final_edited_df[feature_cols + demographic_cols + smoking_hist + llm_sent]
-				new_results = generate_outcome(subject=st.session_state.selected_subject, classifier=st.session_state.model_selection, full_row=new_X)
+				new_results = generate_outcome(subject=st.session_state.selected_subject, 
+											classifier=st.session_state.model_selection, 
+											full_row=new_X)
 				st.markdown(new_results)
 
 		notes = st.text_area('Doctor\'s Notes')
@@ -534,12 +550,15 @@ def patient_page(patient_id:str):
 	st.image(image=logo_img, use_container_width=True)
 
 	with st.sidebar:
-		st.header(body='Patient Portal')
-		st.divider()
-		st.write(datetime.now().strftime("%Y-%M-%d %H:%M"))
+		st.header(body='Patient\'s Portal')
+		st.write(datetime.now().strftime("%d %b %Y %I:%M %p"))
 		st.write(f'Welcome {st.session_state.subject}')
+		st.session_state.model_selection = st.selectbox(label='Classifier', options=list(modelpaths.keys()))
 
-		show_hist = st.toggle('Show History')
+		# show_hist = st.toggle('Show History')
+		clinical_data = st.toggle(label='Clinical Data')
+		demographic_data = st.toggle(label='Demographic Data')
+		smoking_history = st.toggle(label='Smoking History')
 		show_reports = st.toggle('View Results')
 
 		logout = st.button(label='Logout', use_container_width=True)
@@ -552,7 +571,7 @@ def patient_page(patient_id:str):
 	st.title('Patient Dashboard')
 	st.divider()
 
-	info, diagnostics, history, ai = st.tabs(['Information', 'Diagnostics', 'My History', 'Talk To VDoctor'])
+	info, diagnostics, history, ai = st.tabs(['Information', 'Diagnostics', 'My History and Results', 'Talk To V-Doctor'])
 
 	with info:
 		info_tab()
@@ -563,29 +582,97 @@ def patient_page(patient_id:str):
 			# st.pyplot(fig=shap, use_container_width=True)
 			st.image(os.path.join('shap_plots', f'{patient_id}.png'))
 
+
 		notes = st.text_area('Doctor\'s Notes')
 		observations = st.text_area('My Observations')
 
 		st.button(label='Save Observations', use_container_width=True, disabled=True if observations=='' else False)
 
 	with history:
-		if show_hist:
-			col1, col2 = st.columns(2)
+		edited_data = {}
+		original_columns = csvdata.columns.tolist()
+		c1, c2, c3 = st.columns(3)
 
-			with col1:
-				st.write('Demographic History')
-				row_dm = csvdata[csvdata['Subject'] == int(st.session_state.subject)]
-				slice_dm = row_dm[demographic_cols].T  
-				slice_dm.columns = ['Data'] 
-				st.dataframe(data=slice_dm, use_container_width=True)
+		original = csvdata[csvdata['Subject'] == int(patient_id)]
 
-			with col2:
+		def process_data(section_name, columns):
+			"""Handles editing and storing modified data while preserving structure."""
+			display_names = {
+				'age': 'Patient Age',
+				'ethnic': 'Ethnicity',
+				'gender': 'Gender',
+				'height': 'Height (in)',
+				'race': 'Race',
+				'weight': 'Weight (lbs)',
+				'age_quit': 'Quit Smoking Age',
+				'cigar': 'Smoked Cigar',
+				'pipe': 'Smoked Pipe',
+				'pkyr': 'Pack Years',
+				'smokeage': 'Smoking Onset Age',
+				'smokeday': 'Avg Days Smoked',
+				'smokelive': 'Lives With Smoker(s)',
+				'smokework': 'Works With Smoker(s)',
+				'smokeyr': 'Total Smoking Years',
+				'biop0': 'Biopsy Type',
+				'bioplc': 'Cancer Biopsy',
+				'can_scr': 'Screened for Cancer',
+				'canc_free_days': 'Days Without Cancer',
+				'proclc' : 'Cancer Procedure',
+				'cigsmok' : 'Currently Smoking'
+			}
+			
+			slice_df = csvdata[['Subject'] + columns]
+			data_df = slice_df[slice_df['Subject'] == int(patient_id)].T
+			data_df.columns = ['Value']
+			
+			# Apply display names to the index
+			data_df.index = data_df.index.map(lambda x: display_names.get(x, x))
+			
+			# Editable dataframe
+			edited_df = st.data_editor(data_df, use_container_width=True)
+			
+			# Convert display names back to original column names
+			reverse_mapping = {v: k for k, v in display_names.items()}
+			edited_df.index = edited_df.index.map(lambda x: reverse_mapping.get(x, x))
+			
+			# Store edited values while avoiding duplicate 'Subject' columns
+			edited_df = edited_df.T
+			edited_df = edited_df.drop(columns=['Subject'], errors='ignore')
+			edited_df.insert(0, 'Subject', patient_id)  # Ensure 'Subject' is the first column
+			
+			edited_data[section_name] = edited_df
+
+
+		with c1:
+			if clinical_data:
+				st.write('Clinical Data')
+				process_data('Clinical', clinical)
+
+		with c2:
+			if demographic_data:
+				st.write('Demographic Data')
+				process_data('Demographic', demographic_cols)
+
+		with c3:
+			if smoking_history:
 				st.write('Smoking History')
-				row_sm = csvdata[csvdata['Subject'] == int(st.session_state.subject)]
-				slice_sm = row_sm[smoking_hist].T  
-				slice_sm.columns = ['Data'] 
-				st.dataframe(data=slice_sm, use_container_width=True)
+				process_data('Smoking History', smoking_hist)
 
+		if edited_data:
+			final_edited_df = pd.concat(edited_data.values(), axis=1)
+
+			# Remove duplicate columns (keeping the first occurrence)
+			final_edited_df = final_edited_df.loc[:, ~final_edited_df.columns.duplicated()]
+			final_edited_df = final_edited_df.reindex(columns=original_columns, fill_value=None)
+			final_edited_df = final_edited_df.fillna(original.set_index('Subject').loc[int(patient_id)])
+
+			new_pred = st.toggle('Generate My Prediction Results')
+			if new_pred:
+				new_X = final_edited_df[feature_cols + demographic_cols + smoking_hist + llm_sent]
+				new_results = generate_outcome(subject=patient_id, 
+											classifier=st.session_state.model_selection, 
+											full_row=new_X)
+				st.markdown(new_results)
 
 
 	with ai:
@@ -599,11 +686,26 @@ Refer to patient info given below.
 Answer them as per your knowledge and understanding. Keep your answers highly descriptive.
 If any question is unrelated to the data, respectfully decilne to answer that question stating your reason.
 Give suggestions for diagnosis and treatment based on these columns - treament_categories, treatment_types, treatment_days
+
+Some fields that do have a clear description are described for your understanding below - 
+bioplc - Had a biopsy related to lung cancer?
+biop0 - Had a biopsy related to positive screen?
+proclc - Had any procedure related to lung cancer?
+can_scr - Result of screen associated with the first confirmed lung cancer diagnosis Indicates whether the cancer followed a positive negative, or missed screen, or whether it occurred after the screening years.
+0="No Cancer", 1="Positive Screen", 2="Negative Screen", 3="Missed Screen", 4="Post Screening"
+canc_free_days - Days until the date the participant was last known to be free of lung cancer. 
+llm_sentiment - AI generated sentiment variable for cancer likeliness from 0 - 10.
+lung_cancer - Actual clinical test outcome for lung cancer (0 = negative, 1 = positive)
+
+
 If any patient tested negative (lung_cancer == 0), that means they do no need any further treatment.
+Do not refer to the patient by their number, instead use natural language by referring to them as 'You'.
+Also, from the given data always assume that the patient is yet to receive the treatment and/or diagnosis, and respond accordingly.
+Eg. It is suggested that you ... so on.
 '''.strip())
 
 		if "messages" not in st.session_state: st.session_state.messages = []
-		prompt = st.chat_input(placeholder='What treatment is suggected?')
+		prompt = st.chat_input(placeholder='What treatment is suggested?')
 
 		for message in st.session_state.messages:
 			with st.chat_message(message["role"]):
@@ -621,10 +723,8 @@ If any patient tested negative (lung_cancer == 0), that means they do no need an
 
 def main():
 	
-	if 'login' not in st.session_state:
-		st.session_state.login = False
-	if 'user' not in st.session_state:
-		st.session_state.user = None
+	if 'login' not in st.session_state: st.session_state.login = False
+	if 'user' not in st.session_state: st.session_state.user = None
 	
 	if not st.session_state.login:
 		st.image(image=logo_img, use_container_width=True)
@@ -632,7 +732,6 @@ def main():
 		
 		username = st.text_input(label='Username/Patient ID')
 		password = st.text_input(label='Password', type='password')
-		
 		col1, col2 = st.columns(2)
 		
 		with col1:
@@ -678,8 +777,8 @@ if __name__ == "__main__":
 	Manager = utilloader('manager')
 
 	st.session_state.subject_list = list(csvdata['Subject'])
-	st.session_state.login = True
-	st.session_state.user = 'Doctor'
+	# st.session_state.login = True
+	# st.session_state.user = 'Doctor'
 	# patient_page('100158')
 	
 	main()
