@@ -57,10 +57,6 @@ def info_tab():
 *Enabling AI-based diagnostics for lung cancer using advanced multimodal feature fusion approach.*
 """.strip())
 
-	# st.subheader(""" 
-	# PulmoAID -  Enabling AI-based diagnostics for lung cancer using advanced multimodal feature fusion approach.
-	# """.strip())
-
 	st.subheader('Data Summary Statistics')
 	st.code(body=""" 
 DATA SUMMARY STATISTICS 
@@ -103,6 +99,9 @@ This LLM also serves as a context-aware question answering chatbot/virtual docto
 	st.image(os.path.join('images', 'fusion_metrics.png'))
 
 	st.subheader('Citations and Sources')
+	st.markdown("[National Lung Screening Trial (NLST)](https://www.cancer.gov/types/lung/research/nlst)")
+	st.markdown("[VGG-16 (PyTorch)](https://pytorch.org/vision/main/models/generated/torchvision.models.vgg16.html)")
+	
 
 
 @st.cache_resource
@@ -679,8 +678,8 @@ if __name__ == "__main__":
 	Manager = utilloader('manager')
 
 	st.session_state.subject_list = list(csvdata['Subject'])
-	# st.session_state.login = True
-	# st.session_state.user = 'Doctor'
+	st.session_state.login = True
+	st.session_state.user = 'Doctor'
 	# patient_page('100158')
 	
 	main()
