@@ -11,6 +11,7 @@ import os
 import shap
 import numpy as np
 import matplotlib.pyplot as plt
+import json, io
 
 import warnings
 warnings.simplefilter('ignore')
@@ -44,7 +45,6 @@ if 'login' not in st.session_state: st.session_state.login = False
 if 'scans' not in st.session_state: st.session_state.scans = []
 if 'pil_images' not in st.session_state: st.session_state.pil_images = []
 if 'subject' not in st.session_state: st.session_state.subject = 'N/A'
-if 'user' not in st.session_state: st.session_state.user = None
 
 st.set_page_config(page_title='PulmoAID', 
 				   layout=st.session_state.layout,
@@ -105,6 +105,57 @@ This LLM also serves as a context-aware question answering chatbot/virtual docto
 	st.subheader('Citations and Sources')
 
 
+@st.cache_resource
+def load_model_from_chunks(model_class, chunks_dir, device='cpu'):
+	"""
+	Load a split model directly into memory for Streamlit
+	Uses st.cache_resource to prevent reloading on every rerun
+	
+	Args:
+		model_class: The PyTorch model class
+		chunks_dir (str): Directory containing the model chunks
+		device (str): Device to load the model to
+	"""
+	# Read metadata
+	with open(os.path.join(chunks_dir, 'metadata.json'), 'r') as f:
+		metadata = json.load(f)
+	
+	# Create a bytes buffer
+	buffer = io.BytesIO()
+	
+	# Join chunks directly in memory
+	for i in range(metadata['num_chunks']):
+		chunk_filename = f'chunk_{i:03d}.bin'
+		with open(os.path.join(chunks_dir, chunk_filename), 'rb') as f:
+			buffer.write(f.read())
+	
+	# Reset buffer position
+	buffer.seek(0)
+	
+	# Load model
+	model = model_class().to(device)
+	model.load_state_dict(torch.load(buffer, map_location=device))
+	
+	return model
+
+
+@st.cache_resource
+def initialize_model():
+	try:
+		device = torch.device('cpu')
+		model = load_model_from_chunks(
+			model_class=LungCancerVGG16Fusion,
+			chunks_dir="model_chunks",  # This should be in your repo
+			device=device
+		)
+		model.eval()
+		return model
+	
+	except Exception as e:
+		# st.error(f"Error loading model: {str(e)}")
+		print(e)
+		return None
+
 
 @st.cache_resource
 def load_llm():
@@ -120,10 +171,14 @@ def utilloader(utility:str):
 	
 	if utility == 'manager':
 		torch.manual_seed(0)
-		device = torch.device('cpu')
-		VGG_16 = LungCancerVGG16Fusion().to(device)
-		modelpath = os.path.join("models", "best_vgg16.pth")
-		VGG_16.load_state_dict(torch.load(modelpath, weights_only=True, map_location=device))
+		# device = torch.device('cpu')
+		# VGG_16 = LungCancerVGG16Fusion().to(device)
+		# modelpath = os.path.join("models", "best_vgg16.pth")
+		# VGG_16.load_state_dict(torch.load(modelpath, weights_only=True, map_location=device))
+		# VGG_16.eval()
+
+		# From chunks
+		VGG_16 = initialize_model()
 		VGG_16.eval()
 
 		return DataManager(VGG_16)
@@ -247,6 +302,19 @@ def generate_shap_plot(base: pd.DataFrame, subject: str):
 	return image
 
 
+# @st.cache_resource
+# def load_image(subject:str):
+# 	path = r"A:\Software Projects\NLST-Dataset\images_all"
+# 	imagepaths = []
+
+# 	for root, _, files in os.walk(path):
+# 		for file in files:
+# 			if subject in files:
+# 				imagepaths.append(os.path.join(root, file))
+
+# 	return imagepaths[8:8+16]
+
+
 def doctor_page():
 	global csvdata, llmdata
 	
@@ -259,7 +327,7 @@ def doctor_page():
 		logout = st.button(label='Logout', use_container_width=True)
 		if logout:
 			st.session_state.login = False
-			st.session_state.messages = []
+			st.session_state.layout = 'centered'
 			st.rerun()
 
 		st.session_state.subject_selection = st.selectbox(label='Patient ID', options=st.session_state.subject_list)
@@ -415,6 +483,7 @@ def doctor_page():
 		save = st.button('Save/Update Notes', use_container_width=True)
 
 
+
 	with ai:
 
 		if 'llm' not in st.session_state:
@@ -477,14 +546,14 @@ def patient_page(patient_id:str):
 		logout = st.button(label='Logout', use_container_width=True)
 
 		if logout:
-			st.session_state.messages = []
+			st.session_state.chat_history = []
 			st.session_state.login = False
 			st.rerun()
 
 	st.title('Patient Dashboard')
 	st.divider()
 
-	info, diagnostics, history, ai = st.tabs(['Information', 'My Diagnostics', 'My History', 'Talk To VDoctor'])
+	info, diagnostics, history, ai = st.tabs(['Information', 'Diagnostics', 'My History', 'Talk To VDoctor'])
 
 	with info:
 		info_tab()
@@ -519,6 +588,7 @@ def patient_page(patient_id:str):
 				st.dataframe(data=slice_sm, use_container_width=True)
 
 
+
 	with ai:
 		if 'llm' not in st.session_state:
 			st.session_state.llm = load_llm()
@@ -551,12 +621,19 @@ If any patient tested negative (lung_cancer == 0), that means they do no need an
 
 
 def main():
+	
+	if 'login' not in st.session_state:
+		st.session_state.login = False
+	if 'user' not in st.session_state:
+		st.session_state.user = None
+	
 	if not st.session_state.login:
 		st.image(image=logo_img, use_container_width=True)
-		st.title('PulmoAID Login')
+		st.title('Login')
 		
 		username = st.text_input(label='Username/Patient ID')
 		password = st.text_input(label='Password', type='password')
+		
 		col1, col2 = st.columns(2)
 		
 		with col1:
@@ -587,9 +664,12 @@ def main():
 				st.error("Invalid credentials or user type selection!")
 	
 	elif st.session_state.login and st.session_state.user == "Doctor":
+		if 'chat_history' not in st.session_state: st.session_state.chat_history = []
 		doctor_page()
 	
 	elif st.session_state.login and st.session_state.user == "Patient":
+		if 'chat_history' not in st.session_state: st.session_state.chat_history = []
+		# st.session_state.scans = load_image(str(st.session_state.subject))
 		patient_page(st.session_state.subject)
 
 
