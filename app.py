@@ -5,6 +5,7 @@ from datetime import datetime
 import pandas as pd
 import streamlit as st
 from PIL import Image
+from database import DBManager
 from manager import DataManager, LungCancerVGG16Fusion
 from gemini import LLM
 import os
@@ -101,7 +102,6 @@ This LLM also serves as a context-aware question answering chatbot/virtual docto
 	st.subheader('Citations and Sources')
 	st.markdown("[National Lung Screening Trial (NLST)](https://www.cancer.gov/types/lung/research/nlst)")
 	st.markdown("[VGG-16 (PyTorch)](https://pytorch.org/vision/main/models/generated/torchvision.models.vgg16.html)")
-	
 
 
 @st.cache_resource
@@ -191,6 +191,9 @@ def utilloader(utility:str):
 	
 	if utility == 'llm_csv':
 		return pd.read_csv(os.path.join("data", "selected_descriptive_data.csv"))
+	
+	if utility == 'database':
+		return DBManager()
 
 
 @st.cache_resource
@@ -301,8 +304,34 @@ def generate_shap_plot(base: pd.DataFrame, subject: str):
 	return image
 
 
+def history_writer(df: pd.DataFrame, imagelist: list):
+	placeholder = os.path.join('images', 'notfound.jpg')
+	ts = df['Timestamp'][0]
+	dt_obj = datetime.fromisoformat(ts)
+	formatted_time = dt_obj.strftime("%m/%d/%Y - %I:%M %p")
+	
+	st.subheader(formatted_time)
+	st.markdown(df['Result'][0])
+	
+	df_slice = df[['Subject'] + demographic_cols + smoking_hist]
+	st.dataframe(df_slice, use_container_width=True, hide_index=True)
+
+	col1, col2, col3, col4 = st.columns(4)
+	cols = [col1, col2, col3, col4]
+
+	for i in range(4):
+		with cols[i]:
+			img_path = os.path.join('ct_scans', imagelist[i]) if i < len(imagelist) else placeholder
+			if not os.path.exists(img_path):  # Check if file exists
+				img_path = placeholder
+
+			st.image(img_path, use_container_width=True, caption=os.path.basename(img_path).split('.')[0])
+	
+	st.divider()
+
+
 def doctor_page():
-	global csvdata, llmdata
+	global csvdata, llmdata, db
 	
 	with st.sidebar:
 		st.header(body='Doctor\'s Portal')
@@ -326,7 +355,7 @@ def doctor_page():
 
 	st.image(image=logo_img, use_container_width=True)
 
-	information, images_clinical, diagnostics, ai = st.tabs(['Information', 'Images and Clinical', 'Diagnostics', 'Talk To AI'])
+	information, images_clinical, diagnostics, historaical_data,  ai = st.tabs(['Information', 'Images and Clinical', 'Diagnostics', 'Patient History', 'Talk To AI'])
 
 	with information:
 		info_tab()
@@ -380,6 +409,9 @@ def doctor_page():
 					else "Generate Fusion Model Prediction", 
 			disabled=True if uploaded_files == [] else False)
 
+		if 0 < len(uploaded_files) < 4:
+			st.warning('It is reccommended upload at least 4 images for the subject.')
+
 		if uploaded_files != [] and submit:
 			nameset = set()
 
@@ -400,7 +432,7 @@ def doctor_page():
 				current_subject = nameset.pop()
 
 				if str(current_subject) != str(st.session_state.subject_selection):
-					st.warning('Warning! Uploaded image ID(s) do not match with selected subject. Please choose correct subject in sidebar.')
+					st.warning('Warning! Uploaded image ID(s) do not match with selected subject. Please choose correct subject in sidebar. Unmatched images may lead to incorrect prediction.')
 
 				with st.spinner(text='Running Model...'):
 					features = Manager.extract_features(imagelist=st.session_state.pil_images)
@@ -487,6 +519,7 @@ def doctor_page():
 			final_edited_df = final_edited_df.fillna(original.set_index('Subject').loc[st.session_state.selected_subject])
 
 			new_pred = st.toggle('Generate New Prediction')
+			
 			if new_pred:
 				new_X = final_edited_df[feature_cols + demographic_cols + smoking_hist + llm_sent]
 				new_results = generate_outcome(subject=st.session_state.selected_subject, 
@@ -494,13 +527,40 @@ def doctor_page():
 											full_row=new_X)
 				st.markdown(new_results)
 
-		notes = st.text_area('Doctor\'s Notes')
+				save_results = st.button('Save New Results', use_container_width=True)
+
+				if save_results:
+					tmp_df = final_edited_df[['Subject'] + demographic_cols + smoking_hist].iloc[0].copy()
+					tmp_df['Result'] = new_results
+					tmp_df['Timestamp'] = datetime.now().isoformat()
+					tmp_df['Images'] = [file.name for file in uploaded_files]
+					df_dict = pd.DataFrame(tmp_df).T.to_dict(orient='records')[0]
+
+					db.save(df_dict)
+					st.toast('Saved diagnostics to databased.')
+
+
+		# notes = st.text_area('Doctor\'s Notes')
+		notes = st.file_uploader(label='Doctor\'s Notes', type=['pdf', 'txt', 'docx'], accept_multiple_files=False)
 		save = st.button('Save/Update Notes', use_container_width=True)
 
 
+	with historaical_data:
+		show_history = st.toggle('Load Patient History')
+
+		if show_history:
+			records = db.fetch(subject_id=int(st.session_state.selected_subject))
+
+			if len(records) > 0:
+				for entry in records:
+					df = pd.DataFrame([entry])
+					imagelist = entry.get("Images", [])  # Extract image list or default to empty list
+					history_writer(df, imagelist)
+
+			else:
+				st.write('No older records found for this patient.')
 
 	with ai:
-
 		if 'llm' not in st.session_state:
 			st.session_state.llm = load_llm()
 
@@ -775,10 +835,11 @@ if __name__ == "__main__":
 	csvdata = utilloader('classifier_csv')
 	llmdata = utilloader('llm_csv')
 	Manager = utilloader('manager')
+	db = utilloader('database')
 
 	st.session_state.subject_list = list(csvdata['Subject'])
-	# st.session_state.login = True
-	# st.session_state.user = 'Doctor'
+	st.session_state.login = True
+	st.session_state.user = 'Doctor'
 	# patient_page('100158')
 	
 	main()
