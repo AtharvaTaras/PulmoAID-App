@@ -13,9 +13,4 @@ pillow
 scikit-learn
 shap
 xgboost
-
-
-1. Database
-2. 3D Model
-3. Class wise predictions
-4. PDF upload section
+pymongo
