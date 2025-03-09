@@ -196,6 +196,9 @@ def utilloader(utility:str):
 	
 	if utility == 'database':
 		return DBManager()
+	
+	if utility == 'doctor_notes':
+		return pd.read_csv(os.path.join('data', 'doctor_notes.csv'))
 
 
 @st.cache_resource
@@ -310,7 +313,8 @@ def history_writer(df: pd.DataFrame, imagelist: list):
 	placeholder = os.path.join('images', 'notfound.jpg')
 	ts = df['Timestamp'][0]
 	dt_obj = datetime.fromisoformat(ts)
-	formatted_time = dt_obj.strftime("%m/%d/%Y - %I:%M %p")
+	dt_obj_est = dt_obj.astimezone(EST_TIME)
+	formatted_time = dt_obj_est.strftime("%m/%d/%Y - %I:%M %p")
 	
 	st.subheader(formatted_time)
 	st.markdown(df['Result'][0])
@@ -332,12 +336,238 @@ def history_writer(df: pd.DataFrame, imagelist: list):
 	st.divider()
 
 
+# def doctor_page():
+# 	global csvdata, llmdata, db
+	
+# 	with st.sidebar:
+# 		st.header(body='Doctor\'s Portal')
+# 		st.write(datetime.now(EST_TIME).strftime("%d %b %Y %I:%M %p"))
+# 		st.write(f'Welcome, Tushar Mehta')
+
+# 		logout = st.button(label='Logout', use_container_width=True)
+# 		if logout:
+# 			st.session_state.messages = []
+# 			st.session_state.login = False
+# 			st.rerun()
+
+# 		st.session_state.subject_selection = st.selectbox(label='Patient ID', options=st.session_state.subject_list)
+# 		st.session_state.model_selection = st.selectbox(label='Classifier', options=list(modelpaths.keys()))
+
+# 		clinical_data = st.toggle(label='Clinical Data')
+# 		demographic_data = st.toggle(label='Demographic Data')
+# 		smoking_history = st.toggle(label='Smoking History')
+
+# 		# doctor_notes = st.text_area(label='Doctor\'s Notes')
+
+# 	st.image(image=logo_img, use_container_width=True)
+
+# 	information, images_clinical, diagnostics, historaical_data,  ai = st.tabs(['Information', 'Images and Clinical', 'Diagnostics', 'Patient History', 'Talk To Virtual Doctor'])
+
+# 	with information:
+# 		info_tab()
+
+# 	with images_clinical:
+# 		uploaded_files = st.file_uploader(label='Upload Scans', accept_multiple_files=True, type=["jpg", "jpeg", "png"])
+
+# 		if uploaded_files != []: 
+# 			tmpset = set()
+
+# 			for file in uploaded_files:
+# 				name = file.name
+# 				tmpset.add(name.split('_')[0])
+
+# 			if len(tmpset) > 1:
+# 				st.warning('Input files are of different subjects, please give images for one subject only.')
+
+# 			tmp_current = str(tmpset.pop())
+
+# 		submit = st.toggle(
+# 			label='Generate Fusion Model Prediction (Please upload CT Scans First)' if uploaded_files == [] \
+# 					else "Generate Fusion Model Prediction", 
+# 			disabled=True if uploaded_files == [] else False)
+
+# 		if 0 < len(uploaded_files) < 4:
+# 			st.warning('It is reccommended upload at least 4 images for the subject.')
+
+# 		if uploaded_files != [] and submit:
+# 			nameset = set()
+
+# 			for file in uploaded_files:
+# 				name = file.name
+# 				nameset.add(name.split('_')[0])
+# 				try:
+# 					image = Image.open(file).convert("RGB")
+# 					st.session_state.pil_images.append(image)
+
+# 				except Exception as e:
+# 					st.error(f"Error processing '{file.name}': {e}")
+				
+# 			if len(nameset) > 1:
+# 				st.warning('Input files are of different subjects, please give images for one subject only.')
+
+# 			else:
+# 				current_subject = nameset.pop()
+
+# 				if str(current_subject) != str(st.session_state.subject_selection):
+# 					st.warning('Warning! Uploaded image ID(s) do not match with selected subject. Please choose correct subject in sidebar. Unmatched images may lead to incorrect prediction.')
+
+# 				with st.spinner(text='Running Model...'):
+# 					features = Manager.extract_features(imagelist=st.session_state.pil_images)
+# 					outcome = generate_outcome(features, current_subject, st.session_state.model_selection)
+# 					st.markdown(outcome)
+
+# 		else:
+# 			st.session_state.selected_subject = st.session_state.subject_selection
+		
+# 		edited_data = {}
+# 		original_columns = csvdata.columns.tolist()
+# 		c1, c2, c3 = st.columns(3)
+
+# 		original = csvdata[csvdata['Subject'] == int(st.session_state.selected_subject)]
+
+# 		def process_data(section_name, columns):
+
+# 			"""Handles editing and storing modified data while preserving structure."""
+# 			display_names = {
+# 				'age': 'Patient Age',
+# 				'ethnic': 'Ethnicity',
+# 				'gender': 'Gender',
+# 				'height': 'Height (in)',
+# 				'race': 'Race',
+# 				'weight': 'Weight (lbs)',
+# 				'age_quit': 'Quit Smoking Age',
+# 				'cigar': 'Smoked Cigar',
+# 				'pipe': 'Smoked Pipe',
+# 				'pkyr': 'Pack Years',
+# 				'smokeage': 'Smoking Onset Age',
+# 				'smokeday': 'Avg Days Smoked',
+# 				'smokelive': 'Lives With Smoker(s)',
+# 				'smokework': 'Works With Smoker(s)',
+# 				'smokeyr': 'Total Smoking Years',
+# 				'biop0': 'Biopsy Type',
+# 				'bioplc': 'Cancer Biopsy',
+# 				'can_scr': 'Screened for Cancer',
+# 				'canc_free_days': 'Days Without Cancer',
+# 				'proclc' : 'Cancer Procedure',
+# 				'cigsmok' : 'Currently Smoking'
+# 			}
+			
+# 			slice_df = csvdata[['Subject'] + columns]
+# 			data_df = slice_df[slice_df['Subject'] == int(st.session_state.subject_selection)].T
+# 			data_df.columns = ['Value']
+			
+# 			# Apply display names to the index
+# 			data_df.index = data_df.index.map(lambda x: display_names.get(x, x))
+			
+# 			# Editable dataframe
+# 			edited_df = st.data_editor(data_df, use_container_width=True)
+			
+# 			# Convert display names back to original column names
+# 			reverse_mapping = {v: k for k, v in display_names.items()}
+# 			edited_df.index = edited_df.index.map(lambda x: reverse_mapping.get(x, x))
+			
+# 			# Store edited values while avoiding duplicate 'Subject' columns
+# 			edited_df = edited_df.T
+# 			edited_df = edited_df.drop(columns=['Subject'], errors='ignore')
+# 			edited_df.insert(0, 'Subject', st.session_state.subject_selection)  # Ensure 'Subject' is the first column
+			
+# 			edited_data[section_name] = edited_df
+
+# 		with c1:
+# 			if clinical_data:
+# 				st.write('Clinical Data')
+# 				process_data('Clinical', clinical)
+
+# 		with c2:
+# 			if demographic_data:
+# 				st.write('Demographic Data')
+# 				process_data('Demographic', demographic_cols)
+
+# 		with c3:
+# 			if smoking_history:
+# 				st.write('Smoking History')
+# 				process_data('Smoking History', smoking_hist)
+
+# 	with diagnostics:
+# 		st.write(""" 
+# 		Comparison of current analysis with the last diagnostics in terms of
+# 		probability key factors that are different.
+# 		""".strip())
+
+# 		if edited_data:
+# 			final_edited_df = pd.concat(edited_data.values(), axis=1)
+
+# 			# Remove duplicate columns (keeping the first occurrence)
+# 			final_edited_df = final_edited_df.loc[:, ~final_edited_df.columns.duplicated()]
+# 			final_edited_df = final_edited_df.reindex(columns=original_columns, fill_value=None)
+# 			final_edited_df = final_edited_df.fillna(original.set_index('Subject').loc[st.session_state.selected_subject])
+
+# 			new_pred = st.toggle('Generate New Prediction')
+			
+# 			if new_pred:
+# 				new_X = final_edited_df[feature_cols + demographic_cols + smoking_hist + llm_sent]
+# 				new_results = generate_outcome(subject=st.session_state.selected_subject, 
+# 											classifier=st.session_state.model_selection, 
+# 											full_row=new_X)
+# 				st.markdown(new_results)
+
+# 				save_results = st.button('Save New Results', use_container_width=True)
+
+# 				if save_results:
+# 					tmp_df = final_edited_df[['Subject'] + demographic_cols + smoking_hist].iloc[0].copy()
+# 					tmp_df['Result'] = new_results
+# 					tmp_df['Timestamp'] = datetime.now().isoformat()
+# 					tmp_df['Images'] = [file.name for file in uploaded_files]
+# 					df_dict = pd.DataFrame(tmp_df).T.to_dict(orient='records')[0]
+
+# 					db.save(df_dict)
+# 					st.toast('Saved diagnostics to database.')
+
+# 		# if uploaded_files != []: 
+# 		# 	tmpset = set()
+
+# 		# 	for file in uploaded_files:
+# 		# 		name = file.name
+# 		# 		tmpset.add(name.split('_')[0])
+
+# 		# 	if len(tmpset) > 1:
+# 		# 		st.warning('Input files are of different subjects, please give images for one subject only.')
+
+# 		# 	tmp_current = str(tmpset.pop())
+
+# 		cl1, cl2 = st.columns(2)
+
+# 		with cl1:
+# 			show_scan = st.toggle(
+# 				label='Show CT Scan (Upload CT Scans First)' if uploaded_files == [] else "Show CT Scan",
+# 				disabled=True if uploaded_files == [] else False)
+			
+# 			if show_scan:
+# 				st.image(uploaded_files[0], caption='CT Scan')
+
+# 		with cl2:
+# 			show_shap = st.toggle(
+# 			label='Generate SHAP Plot (Upload CT Scans First)' if uploaded_files == [] else "Generate SHAP Plot", 
+# 			disabled=True if uploaded_files == [] else False)
+
+# 			if show_shap:
+# 				st.image(os.path.join('shap_plots', f'{tmp_current}.png'))
+				
+
+# 		notes = st.file_uploader(label='Doctor\'s Notes', type=['pdf', 'txt', 'docx'], accept_multiple_files=False)
+# 		save = st.button('Save/Update Notes', use_container_width=True)
+
+# 		patient_obs = st.text_area(label='Patient\'s Observations')
+# 		save_obs = st.button(label='Save Observations', use_container_width=True)
+
+
+# New DOctor Page
 def doctor_page():
 	global csvdata, llmdata, db
 	
 	with st.sidebar:
 		st.header(body='Doctor\'s Portal')
-		st.write(datetime.now(EST_TIME).strftime("%d %b %Y %I:%M %p"))
+		st.write(datetime.now(EST_TIME).strftime("%d %b %Y %I:%M %p") + ' EST')
 		st.write(f'Welcome, Tushar Mehta')
 
 		logout = st.button(label='Logout', use_container_width=True)
@@ -353,68 +583,57 @@ def doctor_page():
 		demographic_data = st.toggle(label='Demographic Data')
 		smoking_history = st.toggle(label='Smoking History')
 
-		# doctor_notes = st.text_area(label='Doctor\'s Notes')
-
 	st.image(image=logo_img, use_container_width=True)
 
-	information, images_clinical, diagnostics, historaical_data,  ai = st.tabs(['Information', 'Images and Clinical', 'Diagnostics', 'Patient History', 'Talk To AI'])
+	information, images_clinical, diagnostics, historaical_data, ai = st.tabs(['Information', 'Images and Clinical', 'Diagnostics', 'Patient History', 'Talk To Virtual Doctor'])
+
+	# Initialize session state variables if they don't exist
+	if 'edited_data' not in st.session_state: st.session_state.edited_data = {}
+	if 'pil_images' not in st.session_state: st.session_state.pil_images = []
+	if 'selected_subject' not in st.session_state: st.session_state.selected_subject = st.session_state.subject_selection
+	if 'current_prediction' not in st.session_state: st.session_state.current_prediction = None
+	if 'uploaded_files_list' not in st.session_state: st.session_state.uploaded_files_list = []
 
 	with information:
 		info_tab()
 
 	with images_clinical:
 		uploaded_files = st.file_uploader(label='Upload Scans', accept_multiple_files=True, type=["jpg", "jpeg", "png"])
-
-		if uploaded_files != []: 
+		
+		# Store uploaded files in session state
+		if uploaded_files:
+			st.session_state.uploaded_files_list = uploaded_files
+			st.session_state.pil_images = []  # Clear previous images
+			
 			tmpset = set()
-
 			for file in uploaded_files:
 				name = file.name
 				tmpset.add(name.split('_')[0])
 
 			if len(tmpset) > 1:
 				st.warning('Input files are of different subjects, please give images for one subject only.')
-
-			tmp_current = str(tmpset.pop())
-
-		cl1, cl2 = st.columns(2)
-
-		with cl1:
-			show_scan = st.toggle(
-				label='Show CT Scan (Upload CT Scans First)' if uploaded_files == [] else "Show CT Scan",
-				disabled=True if uploaded_files == [] else False)
 			
-			if show_scan:
-				st.image(uploaded_files[0], caption='CT Scan')
-
-		with cl2:
-			show_shap = st.toggle(
-			label='Generate SHAP Plot (Upload CT Scans First)' if uploaded_files == [] else "Generate SHAP Plot", 
-			disabled=True if uploaded_files == [] else False)
-
-			if show_shap:
-				st.image(os.path.join('shap_plots', f'{tmp_current}.png'))
+			if tmpset:
+				tmp_current = str(tmpset.pop())
+				# Update the selected subject based on uploaded files
+				st.session_state.selected_subject = tmp_current
 				
+				# Warn if selected subject doesn't match images
+				if str(tmp_current) != str(st.session_state.subject_selection):
+					st.warning('Warning! Uploaded image ID(s) do not match with selected subject. Please choose correct subject in sidebar. Unmatched images may lead to incorrect prediction.')
 
-		patient_obs = st.text_area(label='Patient\'s Observations')
-		save_obs = st.button(label='Save Observations', use_container_width=True)
-
-
-	with diagnostics:
-		st.write(""" 
-		Comparison of current analysis with the last diagnostics in terms of
-		probability key factors that are different.
-		""".strip())
+		else:
+			# If no files uploaded, use the sidebar selection
+			st.session_state.selected_subject = st.session_state.subject_selection
 
 		submit = st.toggle(
-			label='Generate Fusion Model Prediction (Please upload CT Scans First)' if uploaded_files == [] \
-					else "Generate Fusion Model Prediction", 
-			disabled=True if uploaded_files == [] else False)
+			label='Generate Fusion Model Prediction (Please upload CT Scans First)' if not uploaded_files else "Generate Fusion Model Prediction", 
+			disabled=not uploaded_files)
 
 		if 0 < len(uploaded_files) < 4:
-			st.warning('It is reccommended upload at least 4 images for the subject.')
+			st.warning('It is recommended to upload at least 4 images for the subject.')
 
-		if uploaded_files != [] and submit:
+		if uploaded_files and submit:
 			nameset = set()
 
 			for file in uploaded_files:
@@ -423,26 +642,21 @@ def doctor_page():
 				try:
 					image = Image.open(file).convert("RGB")
 					st.session_state.pil_images.append(image)
-
 				except Exception as e:
 					st.error(f"Error processing '{file.name}': {e}")
 				
 			if len(nameset) > 1:
 				st.warning('Input files are of different subjects, please give images for one subject only.')
-
 			else:
 				current_subject = nameset.pop()
-
-				if str(current_subject) != str(st.session_state.subject_selection):
-					st.warning('Warning! Uploaded image ID(s) do not match with selected subject. Please choose correct subject in sidebar. Unmatched images may lead to incorrect prediction.')
+				st.session_state.selected_subject = current_subject
 
 				with st.spinner(text='Running Model...'):
 					features = Manager.extract_features(imagelist=st.session_state.pil_images)
 					outcome = generate_outcome(features, current_subject, st.session_state.model_selection)
 					st.markdown(outcome)
-
-		else:
-			st.session_state.selected_subject = st.session_state.subject_selection
+					# Store the prediction in session state
+					st.session_state.current_prediction = outcome
 		
 		edited_data = {}
 		original_columns = csvdata.columns.tolist()
@@ -477,7 +691,7 @@ def doctor_page():
 			}
 			
 			slice_df = csvdata[['Subject'] + columns]
-			data_df = slice_df[slice_df['Subject'] == int(st.session_state.subject_selection)].T
+			data_df = slice_df[slice_df['Subject'] == int(st.session_state.selected_subject)].T
 			data_df.columns = ['Value']
 			
 			# Apply display names to the index
@@ -493,9 +707,11 @@ def doctor_page():
 			# Store edited values while avoiding duplicate 'Subject' columns
 			edited_df = edited_df.T
 			edited_df = edited_df.drop(columns=['Subject'], errors='ignore')
-			edited_df.insert(0, 'Subject', st.session_state.subject_selection)  # Ensure 'Subject' is the first column
+			edited_df.insert(0, 'Subject', st.session_state.selected_subject)  # Ensure 'Subject' is the first column
 			
 			edited_data[section_name] = edited_df
+			# Store in session state for access in other tabs
+			st.session_state.edited_data[section_name] = edited_df
 
 		with c1:
 			if clinical_data:
@@ -512,39 +728,116 @@ def doctor_page():
 				st.write('Smoking History')
 				process_data('Smoking History', smoking_hist)
 
-		if edited_data:
-			final_edited_df = pd.concat(edited_data.values(), axis=1)
+	with diagnostics:
+		st.write(""" 
+		Comparison of current analysis with the last diagnostics in terms of
+		probability key factors that are different.
+		""".strip())
+		
+		st.subheader(f"Patient ID: {st.session_state.selected_subject}")
 
-			# Remove duplicate columns (keeping the first occurrence)
-			final_edited_df = final_edited_df.loc[:, ~final_edited_df.columns.duplicated()]
-			final_edited_df = final_edited_df.reindex(columns=original_columns, fill_value=None)
-			final_edited_df = final_edited_df.fillna(original.set_index('Subject').loc[st.session_state.selected_subject])
+		# Merge all edited data from session state
+		final_edited_df = None
+		
+		if st.session_state.edited_data:
+			dfs_to_concat = list(st.session_state.edited_data.values())
+			if dfs_to_concat:
+				final_edited_df = pd.concat(dfs_to_concat, axis=1)
+				
+				# Remove duplicate columns (keeping the first occurrence)
+				final_edited_df = final_edited_df.loc[:, ~final_edited_df.columns.duplicated()]
+				
+				# Get original data for the selected subject to fill any missing values
+				original = csvdata[csvdata['Subject'] == int(st.session_state.selected_subject)]
+				
+				# Make sure we have all columns from the original dataframe
+				final_edited_df = final_edited_df.reindex(columns=original_columns, fill_value=None)
+				
+				# Fill missing values with original data
+				if not original.empty:
+					final_edited_df = final_edited_df.fillna(original.set_index('Subject').loc[int(st.session_state.selected_subject)])
+				
+				new_pred = st.toggle('Generate New Prediction')
+				
+				if new_pred:
+					# Make sure we have all necessary feature columns
+					new_X = final_edited_df[feature_cols + demographic_cols + smoking_hist + llm_sent]
+					
+					new_results = generate_outcome(
+						subject=st.session_state.selected_subject, 
+						classifier=st.session_state.model_selection, 
+						full_row=new_X
+					)
+					
+					st.markdown(new_results)
+					st.session_state.current_prediction = new_results
 
-			new_pred = st.toggle('Generate New Prediction')
+					save_results = st.button('Save New Results', use_container_width=True)
+
+					if save_results:
+						tmp_df = final_edited_df[['Subject'] + demographic_cols + smoking_hist].iloc[0].copy()
+						tmp_df['Result'] = new_results
+						tmp_df['Timestamp'] = datetime.now().isoformat()
+						
+						# Get image names from uploaded files
+						image_names = []
+						if st.session_state.uploaded_files_list:
+							image_names = [file.name for file in st.session_state.uploaded_files_list]
+						
+						tmp_df['Images'] = image_names
+						df_dict = pd.DataFrame(tmp_df).T.to_dict(orient='records')[0]
+						
+						db.save(df_dict)
+						st.toast('Saved diagnostics to database.')
+		else:
+			st.info("No edits have been made to patient data. Make changes in the 'Images and Clinical' tab first to generate new predictions.")
+
+		cl1, cl2 = st.columns(2)
+
+		with cl1:
+			show_scan_disabled = len(st.session_state.uploaded_files_list) == 0
+			# show_scan = st.toggle(
+			# 	label='Show CT Scan (Upload CT Scans First)' if show_scan_disabled else "Show CT Scan",
+			# 	disabled=show_scan_disabled)
 			
-			if new_pred:
-				new_X = final_edited_df[feature_cols + demographic_cols + smoking_hist + llm_sent]
-				new_results = generate_outcome(subject=st.session_state.selected_subject, 
-											classifier=st.session_state.model_selection, 
-											full_row=new_X)
-				st.markdown(new_results)
+			show_scan = st.toggle(
+				label='Show Saliency Map (Please Upload CT Scans First)' if show_scan_disabled else "Show Saliency Map",
+				disabled=show_scan_disabled)
 
-				save_results = st.button('Save New Results', use_container_width=True)
+			if show_scan and st.session_state.uploaded_files_list:
+				# st.image(st.session_state.uploaded_files_list[0], caption='CT Scan')
+				plot_path = os.path.join('saliency_plots', f'{st.session_state.subject_selection}.png')
 
-				if save_results:
-					tmp_df = final_edited_df[['Subject'] + demographic_cols + smoking_hist].iloc[0].copy()
-					tmp_df['Result'] = new_results
-					tmp_df['Timestamp'] = datetime.now().isoformat()
-					tmp_df['Images'] = [file.name for file in uploaded_files]
-					df_dict = pd.DataFrame(tmp_df).T.to_dict(orient='records')[0]
+				if os.path.exists(plot_path):
+					st.image(image=plot_path, caption=os.path.basename(plot_path).split('.')[0])
 
-					db.save(df_dict)
-					st.toast('Saved diagnostics to databased.')
+				else:
+					st.image(image=os.path.join('images', 'notfound.jpg'), caption='Failed to Load')
+
+		with cl2:
+			tmp_current = st.session_state.selected_subject
+			show_shap_disabled = len(st.session_state.uploaded_files_list) == 0
+			
+			show_shap = st.toggle(
+				label='Generate SHAP Plot (Upload CT Scans First)' if show_shap_disabled else "Generate SHAP Plot", 
+				disabled=show_shap_disabled)
+
+			if show_shap:
+				# Check if SHAP plot exists for the current subject
+				shap_path = os.path.join('shap_plots', f'{tmp_current}.png')
+				if os.path.exists(shap_path):
+					st.image(shap_path)
+				else:
+					st.warning(f"SHAP plot for subject {tmp_current} not found.")
 
 
-		# notes = st.text_area('Doctor\'s Notes')
-		notes = st.file_uploader(label='Doctor\'s Notes', type=['pdf', 'txt', 'docx'], accept_multiple_files=False)
+		dc_notes = st.text_area(label='Doctor\'s Notes', value=doc_notes[doc_notes['Subject'] == int(st.session_state.selected_subject)]['comments'].values[0])
+
+		notes = st.file_uploader(label='Upload New', type=['pdf', 'txt', 'docx'], accept_multiple_files=False)
 		save = st.button('Save/Update Notes', use_container_width=True)
+
+		patient_obs = st.text_area(label='Patient\'s Observations')
+		save_obs = st.button(label='Save Observations', use_container_width=True)
 
 
 	with historaical_data:
@@ -613,7 +906,7 @@ def patient_page(patient_id:str):
 
 	with st.sidebar:
 		st.header(body='Patient\'s Portal')
-		st.write(datetime.now(EST_TIME).strftime("%d %b %Y %I:%M %p"))
+		st.write(datetime.now(EST_TIME).strftime("%d %b %Y %I:%M %p") + ' EST')
 		st.write(f'Welcome {st.session_state.subject}')
 		st.session_state.model_selection = st.selectbox(label='Classifier', options=list(modelpaths.keys()))
 
@@ -836,12 +1129,13 @@ def main():
 if __name__ == "__main__":
 	csvdata = utilloader('classifier_csv')
 	llmdata = utilloader('llm_csv')
+	doc_notes = utilloader('doctor_notes')
 	Manager = utilloader('manager')
 	db = utilloader('database')
 
 	st.session_state.subject_list = list(csvdata['Subject'])
-	# st.session_state.login = True
-	# st.session_state.user = 'Doctor'
+	st.session_state.login = True
+	st.session_state.user = 'Doctor'
 	# patient_page('100158')
 	
 	main()
