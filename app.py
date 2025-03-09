@@ -13,6 +13,8 @@ import shap
 import numpy as np
 import matplotlib.pyplot as plt
 import json, io
+import pytz
+EST_TIME = pytz.timezone('US/Eastern')
 
 import warnings
 warnings.simplefilter('ignore')
@@ -335,8 +337,8 @@ def doctor_page():
 	
 	with st.sidebar:
 		st.header(body='Doctor\'s Portal')
-		st.write(datetime.now().strftime("%d %b %Y %I:%M %p"))
-		st.write(f'Welcome Dr.Tushar')
+		st.write(datetime.now(EST_TIME).strftime("%d %b %Y %I:%M %p"))
+		st.write(f'Welcome, Tushar Mehta')
 
 		logout = st.button(label='Logout', use_container_width=True)
 		if logout:
@@ -611,7 +613,7 @@ def patient_page(patient_id:str):
 
 	with st.sidebar:
 		st.header(body='Patient\'s Portal')
-		st.write(datetime.now().strftime("%d %b %Y %I:%M %p"))
+		st.write(datetime.now(EST_TIME).strftime("%d %b %Y %I:%M %p"))
 		st.write(f'Welcome {st.session_state.subject}')
 		st.session_state.model_selection = st.selectbox(label='Classifier', options=list(modelpaths.keys()))
 
