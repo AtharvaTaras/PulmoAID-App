@@ -565,14 +565,26 @@ def history_writer(df: pd.DataFrame, imagelist: list):
 def doctor_page():
 	global csvdata, llmdata, db
 	
+	# Initialize session state variables if they don't exist
+	if 'edited_data' not in st.session_state: st.session_state.edited_data = {}
+	if 'pil_images' not in st.session_state: st.session_state.pil_images = []
+	if 'selected_subject' not in st.session_state: st.session_state.selected_subject = st.session_state.subject_selection
+	if 'current_prediction' not in st.session_state: st.session_state.current_prediction = None
+	if 'uploaded_files_list' not in st.session_state: st.session_state.uploaded_files_list = []
+	
 	with st.sidebar:
 		st.header(body='Doctor\'s Portal')
 		st.write(datetime.now(EST_TIME).strftime("%d %b %Y %I:%M %p") + ' EST')
 		st.write(f'Welcome, Tushar Mehta')
 
 		logout = st.button(label='Logout', use_container_width=True)
+		
 		if logout:
 			st.session_state.messages = []
+			st.session_state.edited_data = {}
+			st.session_state.pil_images = []
+			st.session_state.current_prediction = None
+			st.session_state.uploaded_files_list = []
 			st.session_state.login = False
 			st.rerun()
 
@@ -586,13 +598,6 @@ def doctor_page():
 	st.image(image=logo_img, use_container_width=True)
 
 	information, images_clinical, diagnostics, historaical_data, ai = st.tabs(['Information', 'Images and Clinical', 'Diagnostics', 'Patient History', 'Talk To Virtual Doctor'])
-
-	# Initialize session state variables if they don't exist
-	if 'edited_data' not in st.session_state: st.session_state.edited_data = {}
-	if 'pil_images' not in st.session_state: st.session_state.pil_images = []
-	if 'selected_subject' not in st.session_state: st.session_state.selected_subject = st.session_state.subject_selection
-	if 'current_prediction' not in st.session_state: st.session_state.current_prediction = None
-	if 'uploaded_files_list' not in st.session_state: st.session_state.uploaded_files_list = []
 
 	with information:
 		info_tab()
@@ -833,7 +838,7 @@ def doctor_page():
 
 		dc_notes = st.text_area(label='Doctor\'s Notes', value=doc_notes[doc_notes['Subject'] == int(st.session_state.selected_subject)]['comments'].values[0])
 
-		notes = st.file_uploader(label='Upload New', type=['pdf', 'txt', 'docx'], accept_multiple_files=False)
+		notes = st.file_uploader(label='Upload New Notes', type=['pdf', 'txt', 'docx'], accept_multiple_files=False)
 		save = st.button('Save/Update Notes', use_container_width=True)
 
 		patient_obs = st.text_area(label='Patient\'s Observations')
@@ -899,7 +904,11 @@ If any question is unrelated to lung cancer or the medical field in general, res
 
 
 def patient_page(patient_id:str):
-	global csvdata, llmdata
+	global csvdata, llmdata, doc_notes
+	if 'edited_data' not in st.session_state: st.session_state.edited_data = {}
+	if 'pil_images' not in st.session_state: st.session_state.pil_images = []
+	if 'current_prediction' not in st.session_state: st.session_state.current_prediction = None
+	if 'uploaded_files_list' not in st.session_state: st.session_state.uploaded_files_list = []
 
 	st.session_state.subject = patient_id
 	st.image(image=logo_img, use_container_width=True)
@@ -914,36 +923,30 @@ def patient_page(patient_id:str):
 		clinical_data = st.toggle(label='Clinical Data')
 		demographic_data = st.toggle(label='Demographic Data')
 		smoking_history = st.toggle(label='Smoking History')
-		show_reports = st.toggle('View Results')
+		st.divider()
+		show_reports = st.toggle('View Diagnostic Plots')
+		show_preds = st.toggle('View Prediction History')
 
 		logout = st.button(label='Logout', use_container_width=True)
 
 		if logout:
+			st.session_state.edited_data = {}
+			st.session_state.pil_images = []
+			st.session_state.current_prediction = None
+			st.session_state.uploaded_files_list = []
 			st.session_state.chat_history = []
 			st.session_state.login = False
 			st.rerun()
 
 	st.title('Patient Dashboard')
-	st.divider()
 
-	info, diagnostics, history, ai = st.tabs(['Information', 'Diagnostics', 'My History and Results', 'Talk To V-Doctor'])
+	info, diagnostics, history, ai = st.tabs(['Information', 'Diagnostics', 'My History and Results', 'Talk To Virtual Doctor'])
 
 	with info:
 		info_tab()
 
+
 	with diagnostics:
-		if show_reports:
-			# shap = generate_shap_plot(base=csvdata, subject=patient_id)
-			# st.pyplot(fig=shap, use_container_width=True)
-			st.image(os.path.join('shap_plots', f'{patient_id}.png'))
-
-
-		notes = st.text_area('Doctor\'s Notes')
-		observations = st.text_area('My Observations')
-
-		st.button(label='Save Observations', use_container_width=True, disabled=True if observations=='' else False)
-
-	with history:
 		edited_data = {}
 		original_columns = csvdata.columns.tolist()
 		c1, c2, c3 = st.columns(3)
@@ -1021,13 +1024,69 @@ def patient_page(patient_id:str):
 			final_edited_df = final_edited_df.reindex(columns=original_columns, fill_value=None)
 			final_edited_df = final_edited_df.fillna(original.set_index('Subject').loc[int(patient_id)])
 
-			new_pred = st.toggle('Generate My Prediction Results')
-			if new_pred:
-				new_X = final_edited_df[feature_cols + demographic_cols + smoking_hist + llm_sent]
-				new_results = generate_outcome(subject=patient_id, 
-											classifier=st.session_state.model_selection, 
-											full_row=new_X)
-				st.markdown(new_results)
+			# new_pred = st.toggle('Generate My Prediction Results')
+			# if new_pred:
+			# 	new_X = final_edited_df[feature_cols + demographic_cols + smoking_hist + llm_sent]
+			# 	new_results = generate_outcome(subject=patient_id, 
+			# 								classifier=st.session_state.model_selection, 
+			# 								full_row=new_X)
+			# 	st.markdown(new_results)
+
+		# if show_reports:
+		# 	# shap = generate_shap_plot(base=csvdata, subject=patient_id)
+		# 	# st.pyplot(fig=shap, use_container_width=True)
+		# 	st.image(os.path.join('shap_plots', f'{patient_id}.png'))
+
+		st.markdown('Doctor\'s Notes')
+		st.code(body=doc_notes[doc_notes['Subject'] == int(patient_id)]['comments'].values[0])
+		# dc_notes = st.text_area(label='Doctor\'s Notes', value=doc_notes[doc_notes['Subject'] == int(patient_id)]['comments'].values[0])
+		observations = st.text_area('My Observations')
+		st.button(label='Save Observations', use_container_width=True, disabled=True if observations=='' else False)
+
+
+	with history:
+		# new_pred = st.toggle('Generate My Prediction Results')
+		if clinical_data and demographic_data and smoking_history:
+			new_X = final_edited_df[feature_cols + demographic_cols + smoking_hist + llm_sent]
+			new_results = generate_outcome(subject=patient_id, 
+										classifier=st.session_state.model_selection, 
+										full_row=new_X)
+			st.markdown(new_results)
+			st.divider()
+
+		else:
+			st.info('Please enable CSV data to view results.')
+
+		if show_reports:
+			col1, col2 = st.columns(2)
+			# shap = generate_shap_plot(base=csvdata, subject=patient_id)
+			# st.pyplot(fig=shap, use_container_width=True)
+			with col1:
+				st.image(image=os.path.join('shap_plots', f'{patient_id}.png'), caption='SHAP Summary')
+
+			with col2:
+				plot_path = os.path.join('saliency_plots', f'{patient_id}.png')
+
+				if os.path.exists(plot_path):
+					st.image(image=plot_path, caption=os.path.basename(plot_path).split('.')[0])
+
+				else:
+					st.image(image=os.path.join('images', 'notfound.jpg'), caption='Failed to Load')
+
+			st.divider()
+
+		if show_preds:
+			st.subheader('Diagnostic Prediction History')
+			records = db.fetch(subject_id=int(patient_id))
+
+			if len(records) > 0:
+				for entry in records:
+					df = pd.DataFrame([entry])
+					imagelist = entry.get("Images", [])  # Extract image list or default to empty list
+					history_writer(df, imagelist)
+
+			else:
+				st.info('No older records are currently present.')
 
 
 	with ai:
@@ -1134,8 +1193,8 @@ if __name__ == "__main__":
 	db = utilloader('database')
 
 	st.session_state.subject_list = list(csvdata['Subject'])
-	# st.session_state.login = True
+	st.session_state.login = True
 	# st.session_state.user = 'Doctor'
-	# patient_page('100158')
+	patient_page('100158')
 	
 	main()
