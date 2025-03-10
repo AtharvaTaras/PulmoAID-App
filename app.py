@@ -568,7 +568,7 @@ def doctor_page():
 	# Initialize session state variables if they don't exist
 	if 'edited_data' not in st.session_state: st.session_state.edited_data = {}
 	if 'pil_images' not in st.session_state: st.session_state.pil_images = []
-	if 'selected_subject' not in st.session_state: st.session_state.selected_subject = st.session_state.subject_selection
+	# if 'selected_subject' not in st.session_state: st.session_state.selected_subject = st.session_state.subject_selection
 	if 'current_prediction' not in st.session_state: st.session_state.current_prediction = None
 	if 'uploaded_files_list' not in st.session_state: st.session_state.uploaded_files_list = []
 	
@@ -836,7 +836,7 @@ def doctor_page():
 					st.warning(f"SHAP plot for subject {tmp_current} not found.")
 
 
-		dc_notes = st.text_area(label='Doctor\'s Notes', value=doc_notes[doc_notes['Subject'] == int(st.session_state.selected_subject)]['comments'].values[0])
+		st.session_state.dc_notes = st.text_area(label='Doctor\'s Notes', value=doc_notes[doc_notes['Subject'] == int(st.session_state.selected_subject)]['comments'].values[0])
 
 		notes = st.file_uploader(label='Upload New Notes', type=['pdf', 'txt', 'docx'], accept_multiple_files=False)
 		save = st.button('Save/Update Notes', use_container_width=True)
@@ -881,7 +881,10 @@ canc_free_days - Days until the date the participant was last known to be free o
 llm_sentiment - AI generated sentiment variable for cancer likeliness from 0 - 10.
 lung_cancer - Actual clinical test outcome for lung cancer (0 = negative, 1 = positive)
 
-Based on this data, a doctor will be interacting with you and ask you some questions. Answer these questions. 
+The doctor has also added some notes upon examining the CT scan data.
+{st.session_state.dc_notes}
+
+Based on this data, another doctor will be interacting with you and ask you some questions. Answer these questions. 
 Answer them as per your knowledge and understanding. Keep your answers highly verbose and descriptive.
 If any question is unrelated to lung cancer or the medical field in general, respectfully decilne to answer that question.
 ''')
@@ -1025,7 +1028,8 @@ def patient_page(patient_id:str):
 			final_edited_df = final_edited_df.fillna(original.set_index('Subject').loc[int(patient_id)])
 
 		st.markdown('Doctor\'s Notes')
-		st.code(body=doc_notes[doc_notes['Subject'] == int(patient_id)]['comments'].values[0])
+		st.session_state.dc_notes = doc_notes[doc_notes['Subject'] == int(patient_id)]['comments'].values[0]
+		st.code(body=st.session_state.dc_notes)
 		# dc_notes = st.text_area(label='Doctor\'s Notes', value=doc_notes[doc_notes['Subject'] == int(patient_id)]['comments'].values[0])
 		observations = st.text_area('My Observations')
 		st.button(label='Save Observations', use_container_width=True, disabled=True if observations=='' else False)
@@ -1097,6 +1101,8 @@ canc_free_days - Days until the date the participant was last known to be free o
 llm_sentiment - AI generated sentiment variable for cancer likeliness from 0 - 10.
 lung_cancer - Actual clinical test outcome for lung cancer (0 = negative, 1 = positive)
 
+A doctor has also added some comments/notes after examining the patient's CT scans
+{st.session_state.dc_notes}
 
 If any patient tested negative (lung_cancer == 0), that means they do no need any further treatment.
 Do not refer to the patient by their number, instead use natural language by referring to them as 'You'.
