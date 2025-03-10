@@ -561,7 +561,7 @@ def history_writer(df: pd.DataFrame, imagelist: list):
 # 		save_obs = st.button(label='Save Observations', use_container_width=True)
 
 
-# New DOctor Page
+# New Doctor Page
 def doctor_page():
 	global csvdata, llmdata, db
 	
@@ -1024,19 +1024,6 @@ def patient_page(patient_id:str):
 			final_edited_df = final_edited_df.reindex(columns=original_columns, fill_value=None)
 			final_edited_df = final_edited_df.fillna(original.set_index('Subject').loc[int(patient_id)])
 
-			# new_pred = st.toggle('Generate My Prediction Results')
-			# if new_pred:
-			# 	new_X = final_edited_df[feature_cols + demographic_cols + smoking_hist + llm_sent]
-			# 	new_results = generate_outcome(subject=patient_id, 
-			# 								classifier=st.session_state.model_selection, 
-			# 								full_row=new_X)
-			# 	st.markdown(new_results)
-
-		# if show_reports:
-		# 	# shap = generate_shap_plot(base=csvdata, subject=patient_id)
-		# 	# st.pyplot(fig=shap, use_container_width=True)
-		# 	st.image(os.path.join('shap_plots', f'{patient_id}.png'))
-
 		st.markdown('Doctor\'s Notes')
 		st.code(body=doc_notes[doc_notes['Subject'] == int(patient_id)]['comments'].values[0])
 		# dc_notes = st.text_area(label='Doctor\'s Notes', value=doc_notes[doc_notes['Subject'] == int(patient_id)]['comments'].values[0])
@@ -1059,8 +1046,7 @@ def patient_page(patient_id:str):
 
 		if show_reports:
 			col1, col2 = st.columns(2)
-			# shap = generate_shap_plot(base=csvdata, subject=patient_id)
-			# st.pyplot(fig=shap, use_container_width=True)
+
 			with col1:
 				st.image(image=os.path.join('shap_plots', f'{patient_id}.png'), caption='SHAP Summary')
 
@@ -1193,8 +1179,8 @@ if __name__ == "__main__":
 	db = utilloader('database')
 
 	st.session_state.subject_list = list(csvdata['Subject'])
-	st.session_state.login = True
+	# st.session_state.login = True
 	# st.session_state.user = 'Doctor'
-	patient_page('100158')
+	# patient_page('100158')
 	
 	main()
