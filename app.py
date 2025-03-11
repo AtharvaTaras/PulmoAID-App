@@ -199,7 +199,9 @@ def utilloader(utility:str):
 	
 	if utility == 'doctor_notes':
 		return pd.read_csv(os.path.join('data', 'doctor_notes.csv'))
-
+	
+	if utility == 'patient_notes':
+		return pd.read_csv(os.path.join('data', 'patient_notes.csv'))
 
 @st.cache_resource
 def load_classifier(name:str):
@@ -568,7 +570,6 @@ def doctor_page():
 	# Initialize session state variables if they don't exist
 	if 'edited_data' not in st.session_state: st.session_state.edited_data = {}
 	if 'pil_images' not in st.session_state: st.session_state.pil_images = []
-	# if 'selected_subject' not in st.session_state: st.session_state.selected_subject = st.session_state.subject_selection
 	if 'current_prediction' not in st.session_state: st.session_state.current_prediction = None
 	if 'uploaded_files_list' not in st.session_state: st.session_state.uploaded_files_list = []
 	
@@ -631,37 +632,37 @@ def doctor_page():
 			# If no files uploaded, use the sidebar selection
 			st.session_state.selected_subject = st.session_state.subject_selection
 
-		submit = st.toggle(
-			label='Generate Fusion Model Prediction (Please upload CT Scans First)' if not uploaded_files else "Generate Fusion Model Prediction", 
-			disabled=not uploaded_files)
+		# submit = st.toggle(
+		# 	label='Generate Fusion Model Prediction (Please upload CT Scans First)' if not uploaded_files else "Generate Fusion Model Prediction", 
+		# 	disabled=not uploaded_files)
 
-		if 0 < len(uploaded_files) < 4:
-			st.warning('It is recommended to upload at least 4 images for the subject.')
+		# if 0 < len(uploaded_files) < 4:
+		# 	st.warning('It is recommended to upload at least 4 images for the subject.')
 
-		if uploaded_files and submit:
-			nameset = set()
+		# if uploaded_files and submit:
+		# 	nameset = set()
 
-			for file in uploaded_files:
-				name = file.name
-				nameset.add(name.split('_')[0])
-				try:
-					image = Image.open(file).convert("RGB")
-					st.session_state.pil_images.append(image)
-				except Exception as e:
-					st.error(f"Error processing '{file.name}': {e}")
+		# 	for file in uploaded_files:
+		# 		name = file.name
+		# 		nameset.add(name.split('_')[0])
+		# 		try:
+		# 			image = Image.open(file).convert("RGB")
+		# 			st.session_state.pil_images.append(image)
+		# 		except Exception as e:
+		# 			st.error(f"Error processing '{file.name}': {e}")
 				
-			if len(nameset) > 1:
-				st.warning('Input files are of different subjects, please give images for one subject only.')
-			else:
-				current_subject = nameset.pop()
-				st.session_state.selected_subject = current_subject
+		# 	if len(nameset) > 1:
+		# 		st.warning('Input files are of different subjects, please give images for one subject only.')
+		# 	else:
+		# 		current_subject = nameset.pop()
+		# 		st.session_state.selected_subject = current_subject
 
-				with st.spinner(text='Running Model...'):
-					features = Manager.extract_features(imagelist=st.session_state.pil_images)
-					outcome = generate_outcome(features, current_subject, st.session_state.model_selection)
-					st.markdown(outcome)
-					# Store the prediction in session state
-					st.session_state.current_prediction = outcome
+		# 		with st.spinner(text='Running Model...'):
+		# 			features = Manager.extract_features(imagelist=st.session_state.pil_images)
+		# 			outcome = generate_outcome(features, current_subject, st.session_state.model_selection)
+		# 			st.markdown(outcome)
+		# 			# Store the prediction in session state
+		# 			st.session_state.current_prediction = outcome
 		
 		edited_data = {}
 		original_columns = csvdata.columns.tolist()
@@ -718,6 +719,7 @@ def doctor_page():
 			# Store in session state for access in other tabs
 			st.session_state.edited_data[section_name] = edited_df
 
+
 		with c1:
 			if clinical_data:
 				st.write('Clinical Data')
@@ -733,6 +735,20 @@ def doctor_page():
 				st.write('Smoking History')
 				process_data('Smoking History', smoking_hist)
 
+		# DOCTORS NOTES AND PATIENT OBSERVATIONS
+
+		st.session_state.dc_notes = st.text_area(label='Doctor\'s Notes', 
+										         value=doc_notes[doc_notes['Subject'] == int(st.session_state.selected_subject)]['comments'].values[0])
+
+		notes = st.file_uploader(label='Upload New Notes', type=['pdf', 'txt', 'docx'], accept_multiple_files=False)
+		save = st.button('Save/Update Notes', use_container_width=True)
+
+		st.session_state.pt_notes = st.text_area(label='Patient\'s Observations',
+											     value=pat_notes[pat_notes['Subject'] == int(st.session_state.selected_subject)]['Remark'].values[0])
+		
+		save_obs = st.button(label='Save Observations', use_container_width=True)
+
+
 	with diagnostics:
 		st.write(""" 
 		Comparison of current analysis with the last diagnostics in terms of
@@ -740,6 +756,39 @@ def doctor_page():
 		""".strip())
 		
 		st.subheader(f"Patient ID: {st.session_state.selected_subject}")
+
+		submit = st.toggle(
+			label='Generate Fusion Model Prediction (Please upload CT Scans First)' if not uploaded_files else "Generate Fusion Model Prediction", 
+			disabled=not uploaded_files)
+
+		if 0 < len(uploaded_files) < 4:
+			st.warning('It is recommended to upload at least 4 images for the subject.')
+
+		if uploaded_files and submit:
+			nameset = set()
+
+			for file in uploaded_files:
+				name = file.name
+				nameset.add(name.split('_')[0])
+				try:
+					image = Image.open(file).convert("RGB")
+					st.session_state.pil_images.append(image)
+				except Exception as e:
+					st.error(f"Error processing '{file.name}': {e}")
+				
+			if len(nameset) > 1:
+				st.warning('Input files are of different subjects, please give images for one subject only.')
+			else:
+				current_subject = nameset.pop()
+				st.session_state.selected_subject = current_subject
+
+				with st.spinner(text='Running Model...'):
+					features = Manager.extract_features(imagelist=st.session_state.pil_images)
+					outcome = generate_outcome(features, current_subject, st.session_state.model_selection)
+					st.markdown(outcome)
+					# Store the prediction in session state
+					st.session_state.current_prediction = outcome
+		
 
 		# Merge all edited data from session state
 		final_edited_df = None
@@ -836,13 +885,16 @@ def doctor_page():
 					st.warning(f"SHAP plot for subject {tmp_current} not found.")
 
 
-		st.session_state.dc_notes = st.text_area(label='Doctor\'s Notes', value=doc_notes[doc_notes['Subject'] == int(st.session_state.selected_subject)]['comments'].values[0])
+		# st.session_state.dc_notes = st.text_area(label='Doctor\'s Notes', 
+		# 								         value=doc_notes[doc_notes['Subject'] == int(st.session_state.selected_subject)]['comments'].values[0])
 
-		notes = st.file_uploader(label='Upload New Notes', type=['pdf', 'txt', 'docx'], accept_multiple_files=False)
-		save = st.button('Save/Update Notes', use_container_width=True)
+		# notes = st.file_uploader(label='Upload New Notes', type=['pdf', 'txt', 'docx'], accept_multiple_files=False)
+		# save = st.button('Save/Update Notes', use_container_width=True)
 
-		patient_obs = st.text_area(label='Patient\'s Observations')
-		save_obs = st.button(label='Save Observations', use_container_width=True)
+		# st.session_state.pt_notes = st.text_area(label='Patient\'s Observations',
+		# 									     value=pat_notes[pat_notes['Subject'] == int(st.session_state.selected_subject)]['Remark'].values[0])
+		
+		# save_obs = st.button(label='Save Observations', use_container_width=True)
 
 
 	with historaical_data:
@@ -1030,9 +1082,11 @@ def patient_page(patient_id:str):
 		st.markdown('Doctor\'s Notes')
 		st.session_state.dc_notes = doc_notes[doc_notes['Subject'] == int(patient_id)]['comments'].values[0]
 		st.code(body=st.session_state.dc_notes)
-		# dc_notes = st.text_area(label='Doctor\'s Notes', value=doc_notes[doc_notes['Subject'] == int(patient_id)]['comments'].values[0])
-		observations = st.text_area('My Observations')
-		st.button(label='Save Observations', use_container_width=True, disabled=True if observations=='' else False)
+
+		st.session_state.pt_notes = st.text_area(label='My Observations',
+											     value=pat_notes[pat_notes['Subject'] == int(patient_id)]['Remark'].values[0])
+		
+		save_obs = st.button(label='Save Observations', use_container_width=True)
 
 
 	with history:
@@ -1181,10 +1235,12 @@ if __name__ == "__main__":
 	csvdata = utilloader('classifier_csv')
 	llmdata = utilloader('llm_csv')
 	doc_notes = utilloader('doctor_notes')
+	pat_notes = utilloader('patient_notes')
 	Manager = utilloader('manager')
 	db = utilloader('database')
 
 	st.session_state.subject_list = list(csvdata['Subject'])
+	
 	# st.session_state.login = True
 	# st.session_state.user = 'Doctor'
 	# patient_page('100158')
