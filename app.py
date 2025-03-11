@@ -210,63 +210,33 @@ def load_classifier(name:str):
 
 @st.cache_resource
 def generate_outcome(features=[], subject='', classifier='', full_row=None) -> str:
-	global csvdata, feature_cols
-
-	row = csvdata[csvdata['Subject'] == int(subject)]
-	# newrow = features + row[demographic_cols + smoking_hist + llm_sent].values.flatten().tolist()
-	newrow = row[feature_cols + demographic_cols + smoking_hist + llm_sent].values.flatten().tolist()
-	model = load_classifier(classifier)
-
-	if full_row is not None:
-		try:
-			outcome = model.predict_proba(full_row)
-			probability_negative = outcome[0][0] * 100
-			probability_positive = outcome[0][1] * 100
-
-			if probability_negative > probability_positive:
-				result = f"""
-				✅ **Subject `{subject}` has tested _Negative_.**  
-				- **Confidence:** `{probability_negative:.2f}%`
-				"""
-			else:
-				result = f"""
-				⚠️ **Subject `{subject}` has tested _Positive_.**  
-				- **Confidence:** `{probability_positive:.2f}%`
-				"""
-
-		except AttributeError:
-			outcome = model.predict(full_row)
-			result = f"""
-			🧪 **Subject `{subject}` has tested:**  
-			**{"🟢 Negative" if int(outcome[0]) == 0 else "🔴 Positive"}**
-			"""
-
-		return result
-
-	try:
-		outcome = model.predict_proba([newrow])
-		probability_negative = outcome[0][0] * 100
-		probability_positive = outcome[0][1] * 100
-
-		if probability_negative > probability_positive:
-			result = f"""
-			✅ **Subject `{subject}` has tested _Negative_.**  
-			- **Confidence:** `{probability_negative:.2f}%`
-			"""
-		else:
-			result = f"""
-			⚠️ **Subject `{subject}` has tested _Positive_.**  
-			- **Confidence:** `{probability_positive:.2f}%`
-			"""
-
-	except AttributeError:
-		outcome = model.predict([newrow])
-		result = f"""
-		🧪 **Subject `{subject}` has tested:**  
-		**{"🟢 Negative" if int(outcome[0]) == 0 else "🔴 Positive"}**
-		"""
-
-	return result
+    global csvdata, feature_cols
+    
+    row = csvdata[csvdata['Subject'] == int(subject)]
+    newrow = row[feature_cols + demographic_cols + smoking_hist + llm_sent].values.flatten().tolist()
+    model = load_classifier(classifier)
+    
+    # Determine which row to use for prediction
+    prediction_row = full_row if full_row is not None else [newrow]
+    
+    try:
+        # Try to get probability prediction
+        outcome = model.predict_proba(prediction_row)
+        probability_negative = outcome[0][0] * 100
+        probability_positive = outcome[0][1] * 100
+        
+        result = f"**Subject {subject}** has tested **{'🔴 _Positive_' if probability_positive > probability_negative else '🟢 _Negative_'}** with a confidence of **{max(probability_positive, probability_negative):.2f}%**\n"
+        result += f"**\nProbability distribution:** Positive: **{probability_positive:.2f}** | Negative: **{probability_negative:.2f}%**"
+        
+    except AttributeError:
+        # Fall back to binary prediction
+        outcome = model.predict(prediction_row)
+        is_positive = int(outcome[0]) == 1
+        
+        result = f"**Subject {subject}** has tested **{'🔴 _Positive_' if is_positive else '🟢 _Negative_'}**\n"
+        result += f"**Probability distribution:** Not available for this model type"
+    
+    return result
 
 
 # @st.cache_resource
@@ -440,38 +410,6 @@ def doctor_page():
 			# If no files uploaded, use the sidebar selection
 			st.session_state.selected_subject = st.session_state.subject_selection
 
-		# submit = st.toggle(
-		# 	label='Generate Fusion Model Prediction (Please upload CT Scans First)' if not uploaded_files else "Generate Fusion Model Prediction", 
-		# 	disabled=not uploaded_files)
-
-		# if 0 < len(uploaded_files) < 4:
-		# 	st.warning('It is recommended to upload at least 4 images for the subject.')
-
-		# if uploaded_files and submit:
-		# 	nameset = set()
-
-		# 	for file in uploaded_files:
-		# 		name = file.name
-		# 		nameset.add(name.split('_')[0])
-		# 		try:
-		# 			image = Image.open(file).convert("RGB")
-		# 			st.session_state.pil_images.append(image)
-		# 		except Exception as e:
-		# 			st.error(f"Error processing '{file.name}': {e}")
-				
-		# 	if len(nameset) > 1:
-		# 		st.warning('Input files are of different subjects, please give images for one subject only.')
-		# 	else:
-		# 		current_subject = nameset.pop()
-		# 		st.session_state.selected_subject = current_subject
-
-		# 		with st.spinner(text='Running Model...'):
-		# 			features = Manager.extract_features(imagelist=st.session_state.pil_images)
-		# 			outcome = generate_outcome(features, current_subject, st.session_state.model_selection)
-		# 			st.markdown(outcome)
-		# 			# Store the prediction in session state
-		# 			st.session_state.current_prediction = outcome
-		
 		edited_data = {}
 		original_columns = csvdata.columns.tolist()
 		c1, c2, c3 = st.columns(3)
@@ -649,8 +587,13 @@ def doctor_page():
 						tmp_df['Images'] = image_names
 						df_dict = pd.DataFrame(tmp_df).T.to_dict(orient='records')[0]
 						
-						db.save(df_dict)
-						st.toast('Saved diagnostics to database.')
+						save_success = db.save(df_dict)
+
+						if save_success:
+							st.toast('Saved diagnostics to database.')
+
+						else:
+							st.toast('Datbase upload failed!')
 		else:
 			st.info("No edits have been made to patient data. Make changes in the 'Images and Clinical' tab first to generate new predictions.")
 
