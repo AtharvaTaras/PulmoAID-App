@@ -226,7 +226,7 @@ def generate_outcome(features=[], subject='', classifier='', full_row=None) -> s
         probability_positive = outcome[0][1] * 100
         
         result = f"**Subject {subject}** has tested **{'🔴 _Positive_' if probability_positive > probability_negative else '🟢 _Negative_'}** with a confidence of **{max(probability_positive, probability_negative):.2f}%**\n"
-        result += f"**\nProbability distribution:** Positive: **{probability_positive:.2f}** | Negative: **{probability_negative:.2f}%**"
+        result += '\n' + f"**Probability distribution:** Positive: **{probability_positive:.2f}** | Negative: **{probability_negative:.2f}%**"
         
     except AttributeError:
         # Fall back to binary prediction
@@ -234,7 +234,7 @@ def generate_outcome(features=[], subject='', classifier='', full_row=None) -> s
         is_positive = int(outcome[0]) == 1
         
         result = f"**Subject {subject}** has tested **{'🔴 _Positive_' if is_positive else '🟢 _Negative_'}**\n"
-        result += f"**Probability distribution:** Not available for this model type"
+        result += '\n' + f"**Probability distribution:** Not available for this model type"
     
     return result
 
