@@ -12,7 +12,7 @@ DONE 10. Notes go in clinical tab
 DONE 15. Change talk to AI to virtual doctors
 
 DONE 7. Include doctor's notes in LLM chat context
-11. Add patients notes in csv
+DONE 11. Add patients notes in csv
 12. Make classification outcome more natural language like + show probablities
 
 
@@ -20,4 +20,4 @@ DONE 7. Include doctor's notes in LLM chat context
 March 12
 Dynamic LLM sentiment
 13. Improve 
-14. Add metadata tab for ethnicity/race etc
+DONE 14. Add metadata tab for ethnicity/race etc
