@@ -338,229 +338,37 @@ def history_writer(df: pd.DataFrame, imagelist: list):
 	st.divider()
 
 
-# def doctor_page():
-# 	global csvdata, llmdata, db
-	
-# 	with st.sidebar:
-# 		st.header(body='Doctor\'s Portal')
-# 		st.write(datetime.now(EST_TIME).strftime("%d %b %Y %I:%M %p"))
-# 		st.write(f'Welcome, Tushar Mehta')
+def metadata_tab():
+	st.markdown(
+''' 
+## **Variable Encoding Metadata**  
 
-# 		logout = st.button(label='Logout', use_container_width=True)
-# 		if logout:
-# 			st.session_state.messages = []
-# 			st.session_state.login = False
-# 			st.rerun()
+### **Gender**  
+- **1** – Male  
+- **2** – Female  
 
-# 		st.session_state.subject_selection = st.selectbox(label='Patient ID', options=st.session_state.subject_list)
-# 		st.session_state.model_selection = st.selectbox(label='Classifier', options=list(modelpaths.keys()))
+### **Ethnicity**  
+- **1** – Hispanic or Latino  
+- **2** – Neither Hispanic nor Latino  
+- **7** – Participant refused to answer  
+- **95** – Missing data form (not expected to ever be completed)  
+- **98** – Missing (form submitted, but answer left blank)  
+- **99** – Unknown  
 
-# 		clinical_data = st.toggle(label='Clinical Data')
-# 		demographic_data = st.toggle(label='Demographic Data')
-# 		smoking_history = st.toggle(label='Smoking History')
+### **Race**  
+- **1** – White  
+- **2** – Black or African-American  
+- **3** – Asian  
+- **4** – American Indian or Alaskan Native  
+- **5** – Native Hawaiian or Other Pacific Islander  
+- **6** – More than one race  
 
-# 		# doctor_notes = st.text_area(label='Doctor\'s Notes')
-
-# 	st.image(image=logo_img, use_container_width=True)
-
-# 	information, images_clinical, diagnostics, historaical_data,  ai = st.tabs(['Information', 'Images and Clinical', 'Diagnostics', 'Patient History', 'Talk To Virtual Doctor'])
-
-# 	with information:
-# 		info_tab()
-
-# 	with images_clinical:
-# 		uploaded_files = st.file_uploader(label='Upload Scans', accept_multiple_files=True, type=["jpg", "jpeg", "png"])
-
-# 		if uploaded_files != []: 
-# 			tmpset = set()
-
-# 			for file in uploaded_files:
-# 				name = file.name
-# 				tmpset.add(name.split('_')[0])
-
-# 			if len(tmpset) > 1:
-# 				st.warning('Input files are of different subjects, please give images for one subject only.')
-
-# 			tmp_current = str(tmpset.pop())
-
-# 		submit = st.toggle(
-# 			label='Generate Fusion Model Prediction (Please upload CT Scans First)' if uploaded_files == [] \
-# 					else "Generate Fusion Model Prediction", 
-# 			disabled=True if uploaded_files == [] else False)
-
-# 		if 0 < len(uploaded_files) < 4:
-# 			st.warning('It is reccommended upload at least 4 images for the subject.')
-
-# 		if uploaded_files != [] and submit:
-# 			nameset = set()
-
-# 			for file in uploaded_files:
-# 				name = file.name
-# 				nameset.add(name.split('_')[0])
-# 				try:
-# 					image = Image.open(file).convert("RGB")
-# 					st.session_state.pil_images.append(image)
-
-# 				except Exception as e:
-# 					st.error(f"Error processing '{file.name}': {e}")
-				
-# 			if len(nameset) > 1:
-# 				st.warning('Input files are of different subjects, please give images for one subject only.')
-
-# 			else:
-# 				current_subject = nameset.pop()
-
-# 				if str(current_subject) != str(st.session_state.subject_selection):
-# 					st.warning('Warning! Uploaded image ID(s) do not match with selected subject. Please choose correct subject in sidebar. Unmatched images may lead to incorrect prediction.')
-
-# 				with st.spinner(text='Running Model...'):
-# 					features = Manager.extract_features(imagelist=st.session_state.pil_images)
-# 					outcome = generate_outcome(features, current_subject, st.session_state.model_selection)
-# 					st.markdown(outcome)
-
-# 		else:
-# 			st.session_state.selected_subject = st.session_state.subject_selection
-		
-# 		edited_data = {}
-# 		original_columns = csvdata.columns.tolist()
-# 		c1, c2, c3 = st.columns(3)
-
-# 		original = csvdata[csvdata['Subject'] == int(st.session_state.selected_subject)]
-
-# 		def process_data(section_name, columns):
-
-# 			"""Handles editing and storing modified data while preserving structure."""
-# 			display_names = {
-# 				'age': 'Patient Age',
-# 				'ethnic': 'Ethnicity',
-# 				'gender': 'Gender',
-# 				'height': 'Height (in)',
-# 				'race': 'Race',
-# 				'weight': 'Weight (lbs)',
-# 				'age_quit': 'Quit Smoking Age',
-# 				'cigar': 'Smoked Cigar',
-# 				'pipe': 'Smoked Pipe',
-# 				'pkyr': 'Pack Years',
-# 				'smokeage': 'Smoking Onset Age',
-# 				'smokeday': 'Avg Days Smoked',
-# 				'smokelive': 'Lives With Smoker(s)',
-# 				'smokework': 'Works With Smoker(s)',
-# 				'smokeyr': 'Total Smoking Years',
-# 				'biop0': 'Biopsy Type',
-# 				'bioplc': 'Cancer Biopsy',
-# 				'can_scr': 'Screened for Cancer',
-# 				'canc_free_days': 'Days Without Cancer',
-# 				'proclc' : 'Cancer Procedure',
-# 				'cigsmok' : 'Currently Smoking'
-# 			}
-			
-# 			slice_df = csvdata[['Subject'] + columns]
-# 			data_df = slice_df[slice_df['Subject'] == int(st.session_state.subject_selection)].T
-# 			data_df.columns = ['Value']
-			
-# 			# Apply display names to the index
-# 			data_df.index = data_df.index.map(lambda x: display_names.get(x, x))
-			
-# 			# Editable dataframe
-# 			edited_df = st.data_editor(data_df, use_container_width=True)
-			
-# 			# Convert display names back to original column names
-# 			reverse_mapping = {v: k for k, v in display_names.items()}
-# 			edited_df.index = edited_df.index.map(lambda x: reverse_mapping.get(x, x))
-			
-# 			# Store edited values while avoiding duplicate 'Subject' columns
-# 			edited_df = edited_df.T
-# 			edited_df = edited_df.drop(columns=['Subject'], errors='ignore')
-# 			edited_df.insert(0, 'Subject', st.session_state.subject_selection)  # Ensure 'Subject' is the first column
-			
-# 			edited_data[section_name] = edited_df
-
-# 		with c1:
-# 			if clinical_data:
-# 				st.write('Clinical Data')
-# 				process_data('Clinical', clinical)
-
-# 		with c2:
-# 			if demographic_data:
-# 				st.write('Demographic Data')
-# 				process_data('Demographic', demographic_cols)
-
-# 		with c3:
-# 			if smoking_history:
-# 				st.write('Smoking History')
-# 				process_data('Smoking History', smoking_hist)
-
-# 	with diagnostics:
-# 		st.write(""" 
-# 		Comparison of current analysis with the last diagnostics in terms of
-# 		probability key factors that are different.
-# 		""".strip())
-
-# 		if edited_data:
-# 			final_edited_df = pd.concat(edited_data.values(), axis=1)
-
-# 			# Remove duplicate columns (keeping the first occurrence)
-# 			final_edited_df = final_edited_df.loc[:, ~final_edited_df.columns.duplicated()]
-# 			final_edited_df = final_edited_df.reindex(columns=original_columns, fill_value=None)
-# 			final_edited_df = final_edited_df.fillna(original.set_index('Subject').loc[st.session_state.selected_subject])
-
-# 			new_pred = st.toggle('Generate New Prediction')
-			
-# 			if new_pred:
-# 				new_X = final_edited_df[feature_cols + demographic_cols + smoking_hist + llm_sent]
-# 				new_results = generate_outcome(subject=st.session_state.selected_subject, 
-# 											classifier=st.session_state.model_selection, 
-# 											full_row=new_X)
-# 				st.markdown(new_results)
-
-# 				save_results = st.button('Save New Results', use_container_width=True)
-
-# 				if save_results:
-# 					tmp_df = final_edited_df[['Subject'] + demographic_cols + smoking_hist].iloc[0].copy()
-# 					tmp_df['Result'] = new_results
-# 					tmp_df['Timestamp'] = datetime.now().isoformat()
-# 					tmp_df['Images'] = [file.name for file in uploaded_files]
-# 					df_dict = pd.DataFrame(tmp_df).T.to_dict(orient='records')[0]
-
-# 					db.save(df_dict)
-# 					st.toast('Saved diagnostics to database.')
-
-# 		# if uploaded_files != []: 
-# 		# 	tmpset = set()
-
-# 		# 	for file in uploaded_files:
-# 		# 		name = file.name
-# 		# 		tmpset.add(name.split('_')[0])
-
-# 		# 	if len(tmpset) > 1:
-# 		# 		st.warning('Input files are of different subjects, please give images for one subject only.')
-
-# 		# 	tmp_current = str(tmpset.pop())
-
-# 		cl1, cl2 = st.columns(2)
-
-# 		with cl1:
-# 			show_scan = st.toggle(
-# 				label='Show CT Scan (Upload CT Scans First)' if uploaded_files == [] else "Show CT Scan",
-# 				disabled=True if uploaded_files == [] else False)
-			
-# 			if show_scan:
-# 				st.image(uploaded_files[0], caption='CT Scan')
-
-# 		with cl2:
-# 			show_shap = st.toggle(
-# 			label='Generate SHAP Plot (Upload CT Scans First)' if uploaded_files == [] else "Generate SHAP Plot", 
-# 			disabled=True if uploaded_files == [] else False)
-
-# 			if show_shap:
-# 				st.image(os.path.join('shap_plots', f'{tmp_current}.png'))
-				
-
-# 		notes = st.file_uploader(label='Doctor\'s Notes', type=['pdf', 'txt', 'docx'], accept_multiple_files=False)
-# 		save = st.button('Save/Update Notes', use_container_width=True)
-
-# 		patient_obs = st.text_area(label='Patient\'s Observations')
-# 		save_obs = st.button(label='Save Observations', use_container_width=True)
+### **Smoked Cigar/Pipe**  
+### **Lived/Worked with Smoker**
+- **0** – No  
+- **1** – Yes  
+'''
+	)
 
 
 # New Doctor Page
@@ -598,7 +406,7 @@ def doctor_page():
 
 	st.image(image=logo_img, use_container_width=True)
 
-	information, images_clinical, diagnostics, historaical_data, ai = st.tabs(['Information', 'Images and Clinical', 'Diagnostics', 'Patient History', 'Talk To Virtual Doctor'])
+	information, images_clinical, diagnostics, historaical_data, ai, metadata = st.tabs(['Information', 'Images and Clinical', 'Diagnostics', 'Patient History', 'Talk To Virtual Doctor', 'Metadata'])
 
 	with information:
 		info_tab()
@@ -960,6 +768,9 @@ If any question is unrelated to lung cancer or the medical field in general, res
 			with st.chat_message("assistant"):
 				st.markdown(response)
 
+	with metadata:
+		metadata_tab()
+
 
 def patient_page(patient_id:str):
 	global csvdata, llmdata, doc_notes
@@ -998,7 +809,7 @@ def patient_page(patient_id:str):
 
 	st.title('Patient Dashboard')
 
-	info, diagnostics, history, ai = st.tabs(['Information', 'Diagnostics', 'My History and Results', 'Talk To Virtual Doctor'])
+	info, diagnostics, history, ai, metadata = st.tabs(['Information', 'Diagnostics', 'My History and Results', 'Talk To Virtual Doctor', 'Metadata'])
 
 	with info:
 		info_tab()
@@ -1186,6 +997,8 @@ Eg. It is suggested that you ... so on.
 			with st.chat_message("assistant"):
 				st.markdown(response)
 
+	with metadata:
+		metadata_tab()
 
 def main():
 	
