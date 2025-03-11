@@ -920,7 +920,7 @@ def doctor_page():
 		st.session_state.llm.set_prompt(fr'''
 You are an intelligent AI mdeical assistant.
 Refer to the patient data given below (patient is referred to as "Subject"). It is related to a lung cancer study.
-					   
+
 {llmdata[llmdata['Subject'] == int(st.session_state.subject_selection)][demographic_cols + smoking_hist + clinical + llm_sent + ['lung_cancer']].to_dict(orient='records')}
 
 Some fields that do have a clear description are described for your understanding below - 
@@ -934,7 +934,10 @@ llm_sentiment - AI generated sentiment variable for cancer likeliness from 0 - 1
 lung_cancer - Actual clinical test outcome for lung cancer (0 = negative, 1 = positive)
 
 The doctor has also added some notes upon examining the CT scan data.
-{st.session_state.dc_notes}
+Doctor's Notes - {st.session_state.dc_notes}
+
+The patient has also made some observations on their own, which they have noted down below
+Patient's Remarks/Observations - {st.session_state.pt_notes}
 
 Based on this data, another doctor will be interacting with you and ask you some questions. Answer these questions. 
 Answer them as per your knowledge and understanding. Keep your answers highly verbose and descriptive.
@@ -1156,7 +1159,10 @@ llm_sentiment - AI generated sentiment variable for cancer likeliness from 0 - 1
 lung_cancer - Actual clinical test outcome for lung cancer (0 = negative, 1 = positive)
 
 A doctor has also added some comments/notes after examining the patient's CT scans
-{st.session_state.dc_notes}
+Doctor's Notes - {st.session_state.dc_notes}
+
+The patient has also made some observations on their own, which they have noted down below
+Patient's Remarks/Observations - {st.session_state.pt_notes}
 
 If any patient tested negative (lung_cancer == 0), that means they do no need any further treatment.
 Do not refer to the patient by their number, instead use natural language by referring to them as 'You'.
@@ -1241,8 +1247,8 @@ if __name__ == "__main__":
 
 	st.session_state.subject_list = list(csvdata['Subject'])
 	
-	# st.session_state.login = True
-	# st.session_state.user = 'Doctor'
+	st.session_state.login = True
+	st.session_state.user = 'Doctor'
 	# patient_page('100158')
 	
 	main()
