@@ -601,17 +601,13 @@ def doctor_page():
 
 		with cl1:
 			show_scan_disabled = len(st.session_state.uploaded_files_list) == 0
-			# show_scan = st.toggle(
-			# 	label='Show CT Scan (Upload CT Scans First)' if show_scan_disabled else "Show CT Scan",
-			# 	disabled=show_scan_disabled)
 			
 			show_scan = st.toggle(
 				label='Show Saliency Map (Please Upload CT Scans First)' if show_scan_disabled else "Show Saliency Map",
 				disabled=show_scan_disabled)
 
 			if show_scan and st.session_state.uploaded_files_list:
-				# st.image(st.session_state.uploaded_files_list[0], caption='CT Scan')
-				plot_path = os.path.join('saliency_plots', f'{st.session_state.subject_selection}.png')
+				plot_path = os.path.join('saliency_plots', f'{st.session_state.subject_selection}_reg.png')
 
 				if os.path.exists(plot_path):
 					st.image(image=plot_path, caption=os.path.basename(plot_path).split('.')[0])
@@ -635,17 +631,17 @@ def doctor_page():
 				else:
 					st.warning(f"SHAP plot for subject {tmp_current} not found.")
 
+		if not show_scan_disabled:
+			show_viz = st.toggle('Show Feature Correspondance Maps')
+			if show_viz:
+				viz_path = os.path.join('saliency_plots', f'{st.session_state.subject_selection}_viz.png')
 
-		# st.session_state.dc_notes = st.text_area(label='Doctor\'s Notes', 
-		# 								         value=doc_notes[doc_notes['Subject'] == int(st.session_state.selected_subject)]['comments'].values[0])
+				if os.path.exists(viz_path):
+					st.image(viz_path, use_container_width=True)
 
-		# notes = st.file_uploader(label='Upload New Notes', type=['pdf', 'txt', 'docx'], accept_multiple_files=False)
-		# save = st.button('Save/Update Notes', use_container_width=True)
+				else:
+					st.image(image=os.path.join('images', 'notfound.jpg'), caption='Failed to Load')
 
-		# st.session_state.pt_notes = st.text_area(label='Patient\'s Observations',
-		# 									     value=pat_notes[pat_notes['Subject'] == int(st.session_state.selected_subject)]['Remark'].values[0])
-		
-		# save_obs = st.button(label='Save Observations', use_container_width=True)
 
 
 	with historaical_data:
