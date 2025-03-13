@@ -343,7 +343,7 @@ def metadata_tab():
 
 # New Doctor Page
 def doctor_page():
-	global csvdata, llmdata, db
+	global csvdata, llmdata
 	
 	# Initialize session state variables if they don't exist
 	if 'edited_data' not in st.session_state: st.session_state.edited_data = {}
@@ -560,7 +560,6 @@ def doctor_page():
 				new_pred = st.toggle('Generate New Prediction')
 				
 				if new_pred:
-					# Make sure we have all necessary feature columns
 					new_X = final_edited_df[feature_cols + demographic_cols + smoking_hist + llm_sent]
 					
 					new_results = generate_outcome(
@@ -571,29 +570,37 @@ def doctor_page():
 					
 					st.markdown(new_results)
 					st.session_state.current_prediction = new_results
-
 					save_results = st.button('Save New Results', use_container_width=True)
 
 					if save_results:
-						tmp_df = final_edited_df[['Subject'] + demographic_cols + smoking_hist].iloc[0].copy()
-						tmp_df['Result'] = new_results
-						tmp_df['Timestamp'] = datetime.now().isoformat()
+						if not st.session_state.db.check_status():
+							st.session_state.db.retry_connection()
+							if not st.session_state.db.check_status():
+								st.error("Database connection failed. Cannot save results.")
 						
-						# Get image names from uploaded files
-						image_names = []
-						if st.session_state.uploaded_files_list:
-							image_names = [file.name for file in st.session_state.uploaded_files_list]
+						try:
+							tmp_df = final_edited_df[['Subject'] + demographic_cols + smoking_hist].iloc[0].copy()
+							tmp_df['Result'] = new_results
+							tmp_df['Timestamp'] = datetime.now().isoformat()
+							
+							# Get image names from uploaded files
+							image_names = []
+							if st.session_state.uploaded_files_list:
+								image_names = [file.name for file in st.session_state.uploaded_files_list]
+							
+							tmp_df['Images'] = image_names
+							df_dict = pd.DataFrame(tmp_df).T.to_dict(orient='records')[0]
+							save_success = st.session_state.db.save(df_dict)
+							
+							if save_success:
+								st.success('Saved diagnostics to database.')
+							else:
+								st.error('Database upload failed!')
 						
-						tmp_df['Images'] = image_names
-						df_dict = pd.DataFrame(tmp_df).T.to_dict(orient='records')[0]
-						
-						save_success = db.save(df_dict)
+						except Exception as e:
+							st.error(f"Error saving data: {str(e)}")
+							print(f"Save error: {str(e)}")
 
-						if save_success:
-							st.toast('Saved diagnostics to database.')
-
-						else:
-							st.toast('Datbase upload failed!')
 		else:
 			st.info("No edits have been made to patient data. Make changes in the 'Images and Clinical' tab first to generate new predictions.")
 
@@ -643,12 +650,11 @@ def doctor_page():
 					st.image(image=os.path.join('images', 'notfound.jpg'), caption='Failed to Load')
 
 
-
 	with historaical_data:
 		show_history = st.toggle('Load Patient History')
 
 		if show_history:
-			records = db.fetch(subject_id=int(st.session_state.selected_subject))
+			records = st.session_state.db.fetch(subject_id=str(st.session_state.selected_subject))
 
 			if len(records) > 0:
 				for entry in records:
@@ -874,7 +880,7 @@ def patient_page(patient_id:str):
 
 		if show_preds:
 			st.subheader('Diagnostic Prediction History')
-			records = db.fetch(subject_id=int(patient_id))
+			records = st.session_state.db.fetch(subject_id=int(patient_id))
 
 			if len(records) > 0:
 				for entry in records:
@@ -995,8 +1001,8 @@ if __name__ == "__main__":
 	doc_notes = utilloader('doctor_notes')
 	pat_notes = utilloader('patient_notes')
 	Manager = utilloader('manager')
-	db = utilloader('database')
-
+	
+	st.session_state.db = utilloader('database')
 	st.session_state.subject_list = list(csvdata['Subject'])
 	
 	# st.session_state.login = True

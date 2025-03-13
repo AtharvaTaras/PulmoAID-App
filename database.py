@@ -47,7 +47,7 @@ class DBManager():
 		return self.connected
 
 
-	def fetch(self, subject_id:int):
+	def fetch(self, subject_id:str):
 		if self.connected:
 			records = list(
 					self.collection.find({"Subject": subject_id}, {"_id": 0})
@@ -89,6 +89,7 @@ class DBManager():
 
 if __name__ == "__main__":
 	db = DBManager()
-	patient_data = db.fetch(100158)
-	print(patient_data)
+	# patient_data = db.fetch(100158)
+	# print(patient_data)
+
 
