@@ -41,6 +41,7 @@ smoking_hist = ['age_quit', 'cigar', 'cigsmok', 'pipe', 'pkyr', 'smokeage', 'smo
 llm_sent = ['llm_sentiment']
 clinical = ['biop0', 'bioplc', 'proclc', 'can_scr', 'canc_free_days']
 treatments = ['procedures', 'treament_categories', 'treatment_types', 'treatment_days']
+score_cols = ['age_years', 'gender', 'height_inches', 'weight_pounds', 'age_quit', 'cigar', 'cigsmok', 'pipe', 'pack_years', 'smokeage', 'smokeday', 'smokelive', 'smokework', 'smokeyr', 'procedures']
 
 
 if 'layout' not in st.session_state: st.session_state.layout = 'centered'
@@ -868,13 +869,18 @@ def patient_page(patient_id:str):
 				st.image(image=os.path.join('shap_plots', f'{patient_id}.png'), caption='SHAP Summary')
 
 			with col2:
-				plot_path = os.path.join('saliency_plots', f'{patient_id}.png')
+				plot_path = os.path.join('saliency_plots', f'{patient_id}_reg.png')
 
 				if os.path.exists(plot_path):
 					st.image(image=plot_path, caption=os.path.basename(plot_path).split('.')[0])
-
 				else:
-					st.image(image=os.path.join('images', 'notfound.jpg'), caption='Failed to Load')
+					st.image(image=os.path.join('images', 'notfound.jpg'), caption='Failed to Load Saliency Map')
+
+			viz_path = os.path.join('saliency_plots', f'{patient_id}_viz.png')
+			if os.path.exists(viz_path):
+				st.image(image=viz_path, caption='Feature Correspondance Map')
+			else:
+				st.image(image=os.path.join('images', 'notfound.jpg'), caption='Failed to Load Correspondance Map')
 
 			st.divider()
 
