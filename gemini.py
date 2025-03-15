@@ -57,7 +57,7 @@ class LLM():
 
 	def ask(self, question:str):
 		sleep_duration = 60/12 - (time() - self.last_invoke)
-		print(f'sleep_duration {max(sleep_duration, 0)}')
+		# print(f'sleep_duration {max(sleep_duration, 0)}')
 		sleep(max(sleep_duration, 0))
 
 		if len(self.context) > 1_000_000/self.limit:
@@ -191,11 +191,17 @@ class ScoreGen():
 		print('-- Score LLM')
 
 	def generate_score(self, df_row:pd.DataFrame) -> int:
-		response = self.llm.ask(str(df_row.to_dict()))
-		score_line = re.findall(r'score.*', response, flags=re.IGNORECASE)[0]
-		number = re.findall(r'\d+', score_line)[0].strip()
 
-		if number.isnumeric():
-			return int(number)
+		try:
+			response = self.llm.ask(str(df_row.to_dict()))
+			score_line = re.findall(r'score.*', response, flags=re.IGNORECASE)[0]
+			number = re.findall(r'\d+', score_line)[0].strip()
+
+			if number.isnumeric():
+				return min(int(number) + 1, 10)
+			
+			return -1
 		
-		return 6
+		except Exception as e:
+			print(f'Error in score gen, response = {response}')
+			return -1

@@ -7,7 +7,7 @@ import streamlit as st
 from PIL import Image
 from database import DBManager
 from manager import DataManager, LungCancerVGG16Fusion
-from gemini import LLM
+from gemini import LLM, ScoreGen
 import os
 import shap
 import numpy as np
@@ -41,7 +41,7 @@ smoking_hist = ['age_quit', 'cigar', 'cigsmok', 'pipe', 'pkyr', 'smokeage', 'smo
 llm_sent = ['llm_sentiment']
 clinical = ['biop0', 'bioplc', 'proclc', 'can_scr', 'canc_free_days']
 treatments = ['procedures', 'treament_categories', 'treatment_types', 'treatment_days']
-score_cols = ['age_years', 'gender', 'height_inches', 'weight_pounds', 'age_quit', 'cigar', 'cigsmok', 'pipe', 'pack_years', 'smokeage', 'smokeday', 'smokelive', 'smokework', 'smokeyr', 'procedures']
+score_cols = ['age', 'gender', 'height', 'weight', 'age_quit', 'cigar', 'cigsmok', 'pipe', 'pkyr', 'smokeage', 'smokeday', 'smokelive', 'smokework', 'smokeyr']
 
 
 if 'layout' not in st.session_state: st.session_state.layout = 'centered'
@@ -203,6 +203,10 @@ def utilloader(utility:str):
 	
 	if utility == 'patient_notes':
 		return pd.read_csv(os.path.join('data', 'patient_notes.csv'))
+	
+	if utility == 'score_gen':
+		return ScoreGen()
+
 
 @st.cache_resource
 def load_classifier(name:str):
@@ -240,44 +244,14 @@ def generate_outcome(features=[], subject='', classifier='', full_row=None) -> s
     return result
 
 
-# @st.cache_resource
-def generate_shap_plot(base: pd.DataFrame, subject: str):
-	# np.random.seed(0)
-	# model = load_classifier('XGBoost')
-
-	# features = ['n1', 'n2', 'n3', 'n4',
-	# 			'age', 'ethnic', 'gender', 'height', 'race', 'weight',
-	# 			'age_quit', 'cigar', 'cigsmok', 'pipe', 'pkyr', 'smokeage', 'smokeday',
-	# 			'smokelive', 'smokework', 'smokeyr']
-	# X = base[features]
-	# y = base['lung_cancer']
-
-	# # Fit model before SHAP calculation
-	# model.fit(X, y)
-	
-	# subject_index = base[base['Subject'] == int(subject)].index
-	# explainer = shap.TreeExplainer(model)
-	# shap_values = explainer.shap_values(X)
-	# subject_shap_values = shap_values[subject_index]
-
-	# plt.figure(figsize=(12, 8))
-	# shap.summary_plot(shap_values, X, max_display=20, show=False)
-
-	# # Get feature importance order
-	# mean_abs_shap = np.abs(shap_values).mean(axis=0)
-	# feature_importance_order = np.argsort(-mean_abs_shap)[:20]
-	
-	# # Plot subject points
-	# for i, idx in enumerate(feature_importance_order):
-	# 	plt.scatter(subject_shap_values[0][idx], i, color='black', edgecolor='white', s=50, zorder=3)
-
-	# plt.title("SHAP Summary Plot with Subject Highlighted")
-	# plt.tight_layout()
-	
-	# return plt
-
+def generate_shap_plot(subject: str):
 	shap_path = os.path.join('shap_plots', f'{subject}.png')
-	image = Image.open(shap_path)
+	
+	if os.path.exists(shap_path):
+		image = Image.open(shap_path)
+
+	else:
+		image =  Image.open(os.path.join('images', 'notfound.jpg'))
 
 	return image
 
@@ -562,7 +536,14 @@ def doctor_page():
 				
 				if new_pred:
 					new_X = final_edited_df[feature_cols + demographic_cols + smoking_hist + llm_sent]
+					score_df = new_X[score_cols]
+					score_df['procedures'] = csvdata.loc[csvdata['Subject'] == int(st.session_state.selected_subject), 'procedures'].values[0]
+					new_score = ScoreLLM.generate_score(score_df)
 					
+					if new_score != -1:
+						new_X['llm_sentiment'] = [new_score]
+						print('Debug - score generated')
+
 					new_results = generate_outcome(
 						subject=st.session_state.selected_subject, 
 						classifier=st.session_state.model_selection, 
@@ -581,6 +562,7 @@ def doctor_page():
 						
 						try:
 							tmp_df = final_edited_df[['Subject'] + demographic_cols + smoking_hist].iloc[0].copy()
+
 							tmp_df['Result'] = new_results
 							tmp_df['Timestamp'] = datetime.now().isoformat()
 							
@@ -1007,12 +989,13 @@ if __name__ == "__main__":
 	doc_notes = utilloader('doctor_notes')
 	pat_notes = utilloader('patient_notes')
 	Manager = utilloader('manager')
+	ScoreLLM = utilloader('score_gen')
 	
 	st.session_state.db = utilloader('database')
 	st.session_state.subject_list = list(csvdata['Subject'])
 	
-	# st.session_state.login = True
-	# st.session_state.user = 'Doctor'
+	st.session_state.login = True
+	st.session_state.user = 'Doctor'
 	# patient_page('100158')
 	
 	main()
