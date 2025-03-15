@@ -87,7 +87,6 @@ extraction with traditional classification techniques to enhance diagnostic accu
 	""".strip())
 
 	st.subheader('LLM Integration')
-
 	st.image(os.path.join('images', 'gemini_logo.jpg'))
 	st.write(''' 
 Gemini 1.5 Flash's speed and efficiency allows rapid analysis of patient data. 
@@ -99,6 +98,10 @@ The model was used to induce a synthetic varible (llm_sentiment) to act as a doc
 It was prompted to generate a score between 0-10 based on patient's cancer history to add a third modality to the classifier's prediction.
 This LLM also serves as a context-aware question answering chatbot/virtual doctor to interact with the clinical data.
 		''')	
+	
+	st.subheader('System Architecture')
+	st.image(os.path.join('images', 'system_architecture.jpeg'))
+
 	st.subheader('Multimodal Fusion Model Metrics')
 	st.image(os.path.join('images', 'fusion_metrics.png'))
 
@@ -994,8 +997,8 @@ if __name__ == "__main__":
 	st.session_state.db = utilloader('database')
 	st.session_state.subject_list = list(csvdata['Subject'])
 	
-	st.session_state.login = True
-	st.session_state.user = 'Doctor'
+	# st.session_state.login = True
+	# st.session_state.user = 'Doctor'
 	# patient_page('100158')
 	
 	main()
