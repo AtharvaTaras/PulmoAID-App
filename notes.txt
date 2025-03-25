@@ -19,3 +19,9 @@ DONE 12. Make classification outcome more natural language like + show probablit
 March 12
 13. Dynamic LLM sentiment
 DONE 14. Add metadata tab for ethnicity/race etc
+
+-- New
+Fix overfitting issue (segmentation)
+Add register button 
+Generate 8 features - VGG and Resnet
+Generate new plots
