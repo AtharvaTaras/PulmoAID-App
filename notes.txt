@@ -25,3 +25,13 @@ Fix overfitting issue (segmentation)
 Add register button 
 Generate 8 features - VGG and Resnet
 Generate new plots
+min/max slice count for subjects
+Add tushar's email on login page fornew user
+1 slide on segmentation approach
+Send all code in repo
+Add footnote on adding images
+QR code - information page for pulomaid app
+1. Demo video
+2. brief description
+3. information page
+4. github repo for the app
