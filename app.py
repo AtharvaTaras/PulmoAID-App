@@ -937,9 +937,9 @@ Eg. It is suggested that you ... so on.
 		metadata_tab()
 
 def main():
-	
 	if 'login' not in st.session_state: st.session_state.login = False
 	if 'user' not in st.session_state: st.session_state.user = None
+	if 'register' not in st.session_state: st.session_state.register = False
 	
 	if not st.session_state.login:
 		st.image(image=logo_img, use_container_width=True)
@@ -956,7 +956,12 @@ def main():
 		with col2:
 			if st.button("Patient", use_container_width=True):
 				st.session_state.user = "Patient"
+
+		reg_button = st.button("Register As New User", use_container_width=True)
 		
+		if reg_button:
+			st.session_state.register = True
+
 		if username and password and st.session_state.user:
 			if st.session_state.user == "Doctor" and username == st.secrets["keys"]["username"] and password == st.secrets["keys"]["password"]:
 				st.session_state.login = True
@@ -984,6 +989,11 @@ def main():
 		if 'chat_history' not in st.session_state: st.session_state.chat_history = []
 		# st.session_state.scans = load_image(str(st.session_state.subject))
 		patient_page(st.session_state.subject)
+
+	if st.session_state.register:
+		# registration_page()
+		st.info("Please contact mehtat124@gmail.com to create a new user profile.")
+
 
 
 if __name__ == "__main__":
